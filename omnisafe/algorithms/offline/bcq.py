@@ -34,7 +34,7 @@ from omnisafe.wrappers import wrapper_registry
 
 @registry.register
 class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-public-methods
-    """Implementation of the VAEBC algorithm.
+    """Implementation of the BCQ algorithm.
 
     References:
         Title: Off-Policy Deep Reinforcement Learning without Exploration
@@ -43,7 +43,7 @@ class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-publi
     """
 
     def __init__(self, env_id: str, cfgs=None) -> None:  # pylint: disable=super-init-not-called
-        """Initialize the VAEBC algorithm.
+        """Initialize the BCQ algorithm.
 
         Args:
             env: The environment.

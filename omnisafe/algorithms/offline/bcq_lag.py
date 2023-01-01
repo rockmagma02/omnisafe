@@ -44,7 +44,7 @@ class BCQLag(BCQ, Lagrange):  # pylint: disable=too-many-instance-attributes, to
     """
 
     def __init__(self, env_id: str, cfgs=None) -> None:  # pylint: disable=super-init-not-called
-        """Initialize the VAEBC algorithm.
+        """Initialize the BCQ Lag algorithm.
 
         Args:
             env: The environment.
