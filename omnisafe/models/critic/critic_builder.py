@@ -43,7 +43,7 @@ class CriticBuilder:
         self.weight_initialization_mode = weight_initialization_mode
         self.shared = shared
 
-    def build_critic(self, critic_type: str):
+    def build_critic(self, critic_type: str, **kwargs):
         """Build critic."""
         if critic_type == 'q':
             return QCritic(
@@ -53,6 +53,7 @@ class CriticBuilder:
                 activation=self.activation,
                 weight_initialization_mode=self.weight_initialization_mode,
                 shared=self.shared,
+                **kwargs,
             )
         if critic_type == 'v':
             return VCritic(
