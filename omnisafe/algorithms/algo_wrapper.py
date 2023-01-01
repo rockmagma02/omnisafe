@@ -49,8 +49,8 @@ class AlgoWrapper:
         self.algo_type = ALGORITHM2TYPE.get(self.algo, None)
         if self.algo_type is None or self.algo_type == '':
             raise ValueError(f'{self.algo} is not supported!')
-        if self.algo_type in ['off-policy', 'model-based']:
-            assert self.parallel == 1, 'off-policy or model-based only support parallel==1!'
+        if self.algo_type in ['off-policy', 'model-based', 'offline']:
+            assert self.parallel == 1, f'{self.algo_type} only support parallel==1!'
 
     def learn(self):
         """Agent Learning"""
