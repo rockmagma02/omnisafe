@@ -14,4 +14,5 @@
 # ==============================================================================
 """The specific model to the offline algorithm."""
 
+from omnisafe.algorithms.offline.model.bcq_actor import BCQActor
 from omnisafe.algorithms.offline.model.vae import VAE
