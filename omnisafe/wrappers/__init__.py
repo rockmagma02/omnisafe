@@ -20,6 +20,7 @@ from types import MappingProxyType
 from omnisafe.wrappers.early_terminated_wrapper import EarlyTerminatedEnvWrapper
 from omnisafe.wrappers.model_based_wrapper import ModelBasedEnvWrapper
 from omnisafe.wrappers.off_policy_wrapper import OffPolicyEnvWrapper
+from omnisafe.wrappers.offline_wrapper import OfflineEnvWrapper
 from omnisafe.wrappers.on_policy_wrapper import OnPolicyEnvWrapper
 from omnisafe.wrappers.saute_wrapper import SauteEnvWrapper
 from omnisafe.wrappers.simmer_wrapper import SimmerEnvWrapper
@@ -28,6 +29,7 @@ from omnisafe.wrappers.simmer_wrapper import SimmerEnvWrapper
 ENVWRAPPERS = {
     'on-policy-wrapper': OnPolicyEnvWrapper,
     'off-policy-wrapper': OffPolicyEnvWrapper,
+    'offline-wrapper': OfflineEnvWrapper,
     'model-based-wrapper': ModelBasedEnvWrapper,
     'saute-wrapper': SauteEnvWrapper,
     'simmer-wrapper': SimmerEnvWrapper,
