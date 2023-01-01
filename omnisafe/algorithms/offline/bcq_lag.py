@@ -27,8 +27,8 @@ from omnisafe.algorithms.offline.model import VAE, BCQActor
 from omnisafe.common.lagrange import Lagrange
 from omnisafe.common.logger import Logger
 from omnisafe.models import CriticBuilder
-from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.config_utils import namedtuple2dict
+from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.offline_dataset import OfflineDataset
 from omnisafe.wrappers import wrapper_registry
 
@@ -43,7 +43,7 @@ class BCQLag(BCQ, Lagrange):  # pylint: disable=too-many-instance-attributes, to
         URL:  https://arxiv.org/abs/2107.09003
     """
 
-    def __init__(self, env_id: str, cfgs=None) -> None:
+    def __init__(self, env_id: str, cfgs=None) -> None:  # pylint: disable=super-init-not-called
         """Initialize the VAEBC algorithm.
 
         Args:
@@ -94,12 +94,12 @@ class BCQLag(BCQ, Lagrange):  # pylint: disable=too-many-instance-attributes, to
             weight_initialization_mode=cfgs.model_cfgs.weight_initialization_mode,
             shared=None,
         )
-        self.criric = builder.build_critic('q', num_critics = 2)
+        self.criric = builder.build_critic('q', num_critics=2)
         self.target_criric = deepcopy(self.criric)
         self.critic_optimizer = set_optimizer(
             'Adam', module=self.criric, learning_rate=cfgs.critic_lr
         )
-        self.cost_critic = builder.build_critic('q', num_critics = 2)
+        self.cost_critic = builder.build_critic('q', num_critics=2)
         self.target_cost_critic = deepcopy(self.cost_critic)
         self.cost_critic_optimizer = set_optimizer(
             'Adam', module=self.cost_critic, learning_rate=cfgs.critic_lr
@@ -162,7 +162,7 @@ class BCQLag(BCQ, Lagrange):  # pylint: disable=too-many-instance-attributes, to
             self.logger.store(
                 **{
                     'Epoch': self.epoch_step + 1,
-                    'GradStep': (self.epoch_step + 1) * self.cfgs.grad_steps_per_epoch ,
+                    'GradStep': (self.epoch_step + 1) * self.cfgs.grad_steps_per_epoch,
                     'Time/Epoch': time.time() - self.epoch_start_time,
                     'Time/Total': time.time() - self.start_time,
                 }
@@ -190,7 +190,9 @@ class BCQLag(BCQ, Lagrange):  # pylint: disable=too-many-instance-attributes, to
 
         # train cost critic
         qc1, qc2 = self.cost_critic(obs, act)
-        cost_critic_loss = nn.functional.mse_loss(qc1, qc_target) + nn.functional.mse_loss(qc2, qc_target)
+        cost_critic_loss = nn.functional.mse_loss(qc1, qc_target) + nn.functional.mse_loss(
+            qc2, qc_target
+        )
         self.cost_critic_optimizer.zero_grad()
         cost_critic_loss.backward()
         self.cost_critic_optimizer.step()

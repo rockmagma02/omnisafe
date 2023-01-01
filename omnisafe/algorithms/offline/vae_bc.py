@@ -23,8 +23,8 @@ import torch
 from omnisafe.algorithms import registry
 from omnisafe.algorithms.offline.model import VAE
 from omnisafe.common.logger import Logger
-from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.config_utils import namedtuple2dict
+from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.offline_dataset import OfflineDataset
 from omnisafe.wrappers import wrapper_registry
 

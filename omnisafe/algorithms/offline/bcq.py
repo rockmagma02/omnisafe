@@ -22,12 +22,12 @@ import torch
 from torch import nn
 
 from omnisafe.algorithms import registry
-from omnisafe.algorithms.offline.vae_bc import VAEBC
 from omnisafe.algorithms.offline.model import VAE, BCQActor
+from omnisafe.algorithms.offline.vae_bc import VAEBC
 from omnisafe.common.logger import Logger
 from omnisafe.models import CriticBuilder
-from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.config_utils import namedtuple2dict
+from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.offline_dataset import OfflineDataset
 from omnisafe.wrappers import wrapper_registry
 
@@ -42,7 +42,7 @@ class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-publi
         URL:  https://arxiv.org/abs/1812.02900
     """
 
-    def __init__(self, env_id: str, cfgs=None) -> None:
+    def __init__(self, env_id: str, cfgs=None) -> None:  # pylint: disable=super-init-not-called
         """Initialize the VAEBC algorithm.
 
         Args:
@@ -93,7 +93,7 @@ class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-publi
             weight_initialization_mode=cfgs.model_cfgs.weight_initialization_mode,
             shared=None,
         )
-        self.criric = builder.build_critic('q', num_critics = 2)
+        self.criric = builder.build_critic('q', num_critics=2)
         self.target_criric = deepcopy(self.criric)
         self.critic_optimizer = set_optimizer(
             'Adam', module=self.criric, learning_rate=cfgs.critic_lr
@@ -144,7 +144,7 @@ class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-publi
             self.logger.store(
                 **{
                     'Epoch': self.epoch_step + 1,
-                    'GradStep': (self.epoch_step + 1) * self.cfgs.grad_steps_per_epoch ,
+                    'GradStep': (self.epoch_step + 1) * self.cfgs.grad_steps_per_epoch,
                     'Time/Epoch': time.time() - self.epoch_start_time,
                     'Time/Total': time.time() - self.start_time,
                 }
@@ -171,7 +171,9 @@ class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-publi
             qr_target = qr_target.squeeze(1)
 
         qr1, qr2 = self.criric(obs, act)
-        critic_loss = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
+        critic_loss = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(
+            qr2, qr_target
+        )
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
