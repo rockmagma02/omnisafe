@@ -16,6 +16,7 @@
 
 from omnisafe.algorithms.offline.bcq import BCQ
 from omnisafe.algorithms.offline.bcq_lag import BCQLag
+from omnisafe.algorithms.offline.c_crr import CCRR
 from omnisafe.algorithms.offline.crr import CRR
 from omnisafe.algorithms.offline.vae_bc import VAEBC
 
@@ -24,5 +25,6 @@ __all__ = [
     'BCQ',
     'BCQLag',
     'CRR',
+    'CCRR',
     'VAEBC',
 ]
