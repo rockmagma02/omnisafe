@@ -27,6 +27,7 @@ from omnisafe.algorithms.offline.model import VAE, BCQActor
 from omnisafe.common.logger import Logger
 from omnisafe.models import CriticBuilder
 from omnisafe.utils.core import set_optimizer
+from omnisafe.utils.config_utils import namedtuple2dict
 from omnisafe.utils.offline_dataset import OfflineDataset
 from omnisafe.wrappers import wrapper_registry
 
@@ -56,11 +57,12 @@ class BCQ(VAEBC):  # pylint: disable=too-many-instance-attributes, too-few-publi
 
         # set logger and save config
         self.logger = Logger(exp_name=cfgs.exp_name, data_dir=cfgs.data_dir, seed=cfgs.seed)
-        self.logger.save_config(cfgs._asdict())
+        self.logger.save_config(namedtuple2dict(cfgs))
         # set seed
         seed = int(cfgs.seed)
         torch.manual_seed(seed)
         np.random.seed(seed)
+        self.env.set_seed(seed)
         # setup model
         self.vae = VAE(
             obs_dim=self.env.observation_space.shape[0],
