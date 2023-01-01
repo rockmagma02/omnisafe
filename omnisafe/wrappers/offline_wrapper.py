@@ -14,6 +14,9 @@
 # ==============================================================================
 """env wrapper for offline algorithms"""
 
+from typing import Callable
+
+import numpy as np
 import safety_gymnasium
 
 from omnisafe.wrappers.wrapper_registry import WRAPPER_REGISTRY
@@ -55,3 +58,18 @@ class OfflineEnvWrapper:  # pylint: disable=too-many-instance-attributes
         """engine step"""
         next_obs, reward, cost, terminated, truncated, info = self.env.step(action)
         return next_obs, reward, cost, terminated, truncated, info
+
+    def evaluate(self, agent_step: Callable[[np.ndarray], np.ndarray], num_episodes: int):
+        """evaluate agent"""
+        total_reward = 0
+        total_cost = 0
+        for _ in range(num_episodes):
+            self.reset()
+            done = False
+            while not done:
+                action = agent_step(self.curr_o)
+                self.curr_o, reward, cost, terminated, truncated, _ = self.step(action)
+                total_reward += reward
+                total_cost += cost
+                done = terminated or truncated
+        return total_reward / num_episodes, total_cost / num_episodes
