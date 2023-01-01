@@ -21,8 +21,8 @@ import numpy as np
 import torch
 
 from omnisafe.algorithms import registry
-from omnisafe.common.logger import Logger
 from omnisafe.algorithms.offline.model import VAE
+from omnisafe.common.logger import Logger
 from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.offline_dataset import OfflineDataset
 from omnisafe.wrappers import wrapper_registry
@@ -132,7 +132,7 @@ class VAEBC:  # pylint: disable=too-many-instance-attributes
             self.logger.store(
                 **{
                     'Epoch': self.epoch_step + 1,
-                    'GradStep': (self.epoch_step + 1) * self.cfgs.grad_steps_per_epoch ,
+                    'GradStep': (self.epoch_step + 1) * self.cfgs.grad_steps_per_epoch,
                     'Time/Epoch': time.time() - self.epoch_start_time,
                     'Time/Total': time.time() - self.start_time,
                 }
