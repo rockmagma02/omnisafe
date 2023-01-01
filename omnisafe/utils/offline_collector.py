@@ -163,7 +163,7 @@ class Collector:
 
         for i in range(slices.start, slices.stop):
             act = agent_step(obs)
-            next_obs, rew, cost, done, _, _ = env.step(act.numpy())
+            next_obs, rew, cost, terminated, truncated, _ = env.step(act.numpy())
 
             ep_reward += rew
             ep_cost += cost
@@ -172,14 +172,14 @@ class Collector:
             self._action[i] = act.numpy()
             self._reward[i] = rew
             self._cost[i] = cost
-            self._done[i] = done
+            self._done[i] = terminated or truncated
             self._next_obs[i] = next_obs
 
             obs = torch.as_tensor(next_obs, dtype=torch.float32)
             step += 1
             progess_bar.update(1)
 
-            if step == max_ep_len or done:
+            if step == max_ep_len or terminated:
                 obs, info = env.reset()
                 obs = torch.as_tensor(obs, dtype=torch.float32)
                 step = 0
