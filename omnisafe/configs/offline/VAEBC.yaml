@@ -1,0 +1,52 @@
+# Copyright 2022 OmniSafe Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+defaults:
+  # --------------------------------------Basic Configurations----------------------------------- #
+  ## -----------------------------Basic configurations for Vae behaviour clone------------------------ ##
+  # The random seed
+  seed: 0
+  # The environment wrapper type
+  wrapper_type: OfflineEnvWrapper
+  # Number of epochs
+  epochs: 1000
+  # Number of grad steps per epoch
+  grad_steps_per_epoch: 10
+  # Number of batch sizes
+  batch_size: 256
+  # Save model to disk
+  save_freq: 100
+  # Number of epoisodes to run when evaluate
+  eval_episodes: 30
+  # CUDA or CPU device
+  device: 'cuda:7'
+  # The Address for saving training process data
+  data_dir: './runs/offline'
+  # The path of dataset
+  dataset_path: './runs/data/SafetyPointCircle0-v0-mixed-std02.npz'
+  ## ---------------------------------------Configuration For Model----------------------------- ##
+  model_cfgs:
+    # The mode to initiate the weight of network, choosing from "kaiming_uniform", "xavier_normal", "glorot" and "orthogonal".
+    weight_initialization_mode: "kaiming_uniform"
+    # Configuration of Vae network
+    vae_cfgs:
+      # Size of hidden layers
+      hidden_sizes: [750, 750]
+      # size of latent dim
+      latent_dim: 4
+      # Type of activation functon, choosing from "tanh", "relu", "sigmoid", "identity", "softplus"
+      activation: relu
+  # The learning rate of Vae network
+  vae_lr: 0.001
