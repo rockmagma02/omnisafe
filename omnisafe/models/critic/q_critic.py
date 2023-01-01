@@ -39,6 +39,7 @@ class QCritic(Critic):
     ) -> None:
         """Initialize."""
         self.use_obs_encoder = use_obs_encoder
+        self.num_critics = num_critics
         Critic.__init__(
             self,
             obs_dim=obs_dim,
@@ -86,4 +87,6 @@ class QCritic(Critic):
                 res.append(torch.squeeze(critic[1](torch.cat([encodered_obs, act], dim=-1)), -1))
             else:
                 res.append(torch.squeeze(critic[0](torch.cat([obs, act], dim=-1)), -1))
+        if self.num_critics == 1:
+            return res[0]
         return res
