@@ -168,7 +168,9 @@ class CRR:  # pylint: disable=too-many-instance-attributes
             qr_target = self.cfgs.reward_scale * reward + self.cfgs.gamma * (1 - done) * qr_target
 
         qr1, qr2 = self.critic(obs, act)
-        critic_loss = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
+        critic_loss = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(
+            qr2, qr_target
+        )
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
