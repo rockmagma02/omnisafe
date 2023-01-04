@@ -108,3 +108,78 @@ class OfflineDataset(Dataset):
                     yield data
 
         return infinite_dataloader()
+
+
+class OfflineDatasetWithInitObs(OfflineDataset):
+    """A dataset class for offline training with initial observation."""
+
+    def __init__(  # pylint: disable=super-init-not-called
+        self,
+        data_path: str,
+        device: str,
+        obs_standardization: bool = True,
+        episode_length: int = 500,
+    ):
+        """Initialize the dataset.
+
+        Args:
+            data_path: The path to the data.
+            device: The device to load the data to.
+        """
+        print('Loading data from', data_path)
+
+        try:
+            data = np.load(data_path)
+        except FileNotFoundError as exception:
+            raise FileNotFoundError(f'File {data_path} not found.') from exception
+
+        obs = data['obs']
+        action = data['action']
+        reward = data['reward']
+        cost = data['cost']
+        done = data['done']
+        next_obs = data['next_obs']
+
+        if 'init_obs' in data.keys():
+            init_obs = data['init_obs']
+        else:
+            init_obs = obs[::episode_length]
+            init_obs = np.repeat(init_obs, episode_length, axis=0)
+
+        self.obs = torch.from_numpy(obs).float().to(device)
+        self.action = torch.from_numpy(action).float().to(device)
+        self.reward = torch.from_numpy(reward).float().to(device)
+        self.cost = torch.from_numpy(cost).float().to(device)
+        self.done = torch.from_numpy(done).float().to(device)
+        self.next_obs = torch.from_numpy(next_obs).float().to(device)
+        self.init_obs = torch.from_numpy(init_obs).float().to(device)
+
+        self.length = self.obs.shape[0]
+
+        print('Data loaded.')
+
+        print('Standardizing data.')
+        if obs_standardization:
+            self.obs_mean = self.obs.mean(dim=0)
+            self.obs_std = self.obs.std(dim=0)
+            self.obs = (self.obs - self.obs_mean) / (self.obs_std + 1e-8)
+            self.next_obs = (self.next_obs - self.obs_mean) / (self.obs_std + 1e-8)
+            self.init_obs = (self.init_obs - self.obs_mean) / (self.obs_std + 1e-8)
+        else:
+            self.obs_mean = torch.zeros_like(self.obs[0])
+            self.obs_std = torch.ones_like(self.obs[0])
+        print(
+            f'Data standardized, the mean of obs is {self.obs_mean},\n the std of obs is {self.obs_std},'
+        )
+
+    def __getitem__(self, idx):
+        """Return the data and label at the given index."""
+        obs = self.obs[idx]
+        action = self.action[idx]
+        reward = self.reward[idx]
+        cost = self.cost[idx]
+        done = self.done[idx]
+        next_obs = self.next_obs[idx]
+        init_obs = self.init_obs[idx]
+
+        return obs, action, reward, cost, done, next_obs, init_obs
