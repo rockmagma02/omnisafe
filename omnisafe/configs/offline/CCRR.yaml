@@ -77,5 +77,7 @@ defaults:
   lambda_lr: 0.001
   # Type of lagrangian optimizer
   lambda_optimizer: "Adam"
+  # Lagrange upper bound
+  lagrangian_upper_bound: 10
   # When begining update lagrange multiplier, because need time to fit Qc
   begin_update_lag_epoch: 150

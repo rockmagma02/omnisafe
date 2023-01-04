@@ -112,6 +112,7 @@ class CCRR(CRR, Lagrange):  # pylint: disable=too-many-instance-attributes
             lagrangian_multiplier_init=cfgs.lagrangian_multiplier_init,
             lambda_lr=cfgs.lambda_lr,
             lambda_optimizer=cfgs.lambda_optimizer,
+            lagrangian_upper_bound=cfgs.lagrangian_upper_bound,
         )
 
         what_to_save = {
@@ -210,7 +211,7 @@ class CCRR(CRR, Lagrange):  # pylint: disable=too-many-instance-attributes
         self.actor_optimizer.step()
 
         if self.epoch_step > self.cfgs.begin_update_lag_epoch:
-            self.update_lagrange_multiplier(mean_qr.mean().item() / self.cfgs.cost_scale)
+            self.update_lagrange_multiplier(mean_qc.mean().item() / self.cfgs.cost_scale)
 
         self.logger.store(
             **{
