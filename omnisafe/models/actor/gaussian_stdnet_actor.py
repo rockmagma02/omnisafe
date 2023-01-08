@@ -22,6 +22,10 @@ from omnisafe.models.base import Actor
 from omnisafe.utils.model_utils import build_mlp_network
 
 
+LOG_STD_MIN = -5
+LOG_STD_MAX = 2
+
+
 class GaussianStdNetActor(Actor):
     """Implementation of GaussianStdNetActor."""
 
@@ -45,43 +49,24 @@ class GaussianStdNetActor(Actor):
         self.act_max = act_max
 
         if shared is not None:
-            mean_head = build_mlp_network(
-                sizes=[hidden_sizes[-1], act_dim],
+            head = build_mlp_network(
+                sizes=[hidden_sizes[-1], act_dim * 2],
                 activation=activation,
                 weight_initialization_mode=weight_initialization_mode,
             )
-            std_head = build_mlp_network(
-                sizes=[hidden_sizes[-1], act_dim],
-                activation=activation,
-                weight_initialization_mode=weight_initialization_mode,
-            )
-            self.mean = nn.Sequential(shared, mean_head)
-            self.log_std = nn.Sequential(shared, std_head)
+            self.net = nn.Sequential(shared, head)
         else:
-            net = build_mlp_network(
-                [obs_dim] + list(hidden_sizes),
-                activation=activation,
-                output_activation=activation,
-                weight_initialization_mode=weight_initialization_mode,
-            )
-            mean_head = build_mlp_network(
-                sizes=[hidden_sizes[-1], act_dim],
+            self.net = build_mlp_network(
+                [obs_dim] + list(hidden_sizes) + [act_dim * 2],
                 activation=activation,
                 weight_initialization_mode=weight_initialization_mode,
             )
-            std_head = build_mlp_network(
-                sizes=[hidden_sizes[-1], act_dim],
-                activation=activation,
-                weight_initialization_mode=weight_initialization_mode,
-            )
-            self.mean = nn.Sequential(net, mean_head)
-            self.log_std = nn.Sequential(net, std_head)
-        self.net = nn.ModuleList([self.mean, self.log_std])
 
     def _distribution(self, obs):
-        mean = self.mean(obs)
-        log_std = self.log_std(obs)
-        log_std = torch.clamp(log_std, -20, 2)
+        out = self.net(obs)
+        mean, log_std = torch.chunk(out, 2, dim=-1)
+        log_std = torch.tanh(log_std)
+        log_std = LOG_STD_MIN + 0.5 * (log_std + 1) * (LOG_STD_MAX - LOG_STD_MIN)
         std = torch.exp(log_std)
         return Normal(mean, std)
 
@@ -90,15 +75,14 @@ class GaussianStdNetActor(Actor):
         if deterministic:
             out = dist.mean
         else:
-            out = dist.sample()
+            out = dist.rsample()
 
         action = torch.tanh(out)
         action = self.act_min + (action + 1) * 0.5 * (self.act_max - self.act_min)
-        action = torch.clamp(action, self.act_min, self.act_max)
 
         if need_log_prob:
             log_prob = dist.log_prob(out).sum(axis=-1)
-            log_prob -= torch.log(1.00001 - torch.tanh(out) ** 2).sum(axis=-1)
+            log_prob -= torch.log(1.00001 - torch.tanh(out).pow(2)).sum(axis=-1)
             return action.to(torch.float32), log_prob
         return action.to(torch.float32)
 
@@ -106,8 +90,14 @@ class GaussianStdNetActor(Actor):
         dist = self._distribution(obs)
         if act is not None:
             act = 2 * (act - self.act_min) / (self.act_max - self.act_min) - 1
-            act = torch.tan(act)
+            act = torch.atanh(torch.clamp(act, -0.999999, 0.999999))
             log_prob = dist.log_prob(act).sum(axis=-1)
-            log_prob -= torch.log(1.00001 - torch.tanh(act) ** 2).sum(axis=-1)
+            log_prob -= torch.log(1.00001 - torch.tanh(act).pow(2)).sum(axis=-1)
             return dist, log_prob
         return dist
+
+    def change_device(self, device):
+        """Change the device of the actor."""
+        self.to(device)
+        self.act_min = self.act_min.to(device)
+        self.act_max = self.act_max.to(device)
