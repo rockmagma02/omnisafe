@@ -47,6 +47,7 @@ class Collector:
         unsafe_path: str = '',
         unsafe_model_name: str = 'best_model.pt',
         noise_std: float = 0.3,
+        cost_limit: float = 30.0,
     ) -> None:
         """A collector help to collect offline data
 
@@ -76,10 +77,12 @@ class Collector:
         self.unsafe_model_name = unsafe_model_name
 
         self.noise_std = noise_std
+        self.cost_limit = cost_limit
 
         assert self.random_proportion + self.expert_proportion + self.unsafe_proportion == 1.0
 
         env = Env(self.env_id)
+        self.max_ep_len = env.max_ep_len
         self._obs_dim = env.observation_space.shape
         self._act_dim = env.action_space.shape
 
@@ -108,12 +111,81 @@ class Collector:
 
     def collect(self):
         """Collect data"""
+        progress_bar = tqdm.tqdm(total=self.size)
+        ave_total_reward, ave_total_cost = 0, 0
         if self.random_proportion > 0:
-            self._roll_out('random')
+            ave_reward, ave_cost = 0, 0
+            env, agent_step = self._load_env_agent('random')
+            for ptr in range(self.random_slice.start, self.random_slice.stop, self.max_ep_len):
+                data = self._roll_out_eposide(env, agent_step)
+                self._obs[ptr:ptr + self.max_ep_len] = data['obs']
+                self._action[ptr:ptr + self.max_ep_len] = data['action']
+                self._reward[ptr:ptr + self.max_ep_len] = data['reward']
+                self._cost[ptr:ptr + self.max_ep_len] = data['cost']
+                self._done[ptr:ptr + self.max_ep_len] = data['done']
+                self._next_obs[ptr:ptr + self.max_ep_len] = data['next_obs']
+                progress_bar.update(self.max_ep_len)
+                ave_reward += data['ep_ret']
+                ave_cost += data['ep_cost']
+            ave_reward /= (self.random_size / self.max_ep_len)
+            ave_cost /= (self.random_size / self.max_ep_len)
+            ave_total_reward += (ave_reward * self.random_proportion)
+            ave_total_cost += (ave_cost * self.random_proportion)
+            print(f'random data: ave_reward: {ave_reward:.2f}, ave_cost: {ave_cost:.2f}')
+
         if self.expert_proportion > 0:
-            self._roll_out('expert')
+            env, agent_step = self._load_env_agent('expert')
+            ave_reward, ave_cost = 0, 0
+            for ptr in range(self.expert_slice.start, self.expert_slice.stop, self.max_ep_len):
+                data = self._roll_out_eposide(env, agent_step)
+                while data['ep_cost'] > self.cost_limit:
+                    data = self._roll_out_eposide(env, agent_step)
+                self._obs[ptr:ptr + self.max_ep_len] = data['obs']
+                self._action[ptr:ptr + self.max_ep_len] = data['action']
+                self._reward[ptr:ptr + self.max_ep_len] = data['reward']
+                self._cost[ptr:ptr + self.max_ep_len] = data['cost']
+                self._done[ptr:ptr + self.max_ep_len] = data['done']
+                self._next_obs[ptr:ptr + self.max_ep_len] = data['next_obs']
+                progress_bar.update(self.max_ep_len)
+                ave_reward += data['ep_ret']
+                ave_cost += data['ep_cost']
+            ave_reward /= (self.expert_size / self.max_ep_len)
+            ave_cost /= (self.expert_size / self.max_ep_len)
+            ave_total_reward += (ave_reward * self.expert_proportion)
+            ave_total_cost += (ave_cost * self.expert_proportion)
+            print(f'expert data: ave_reward: {ave_reward:.2f}, ave_cost: {ave_cost:.2f}')
+
         if self.unsafe_proportion > 0:
-            self._roll_out('unsafe')
+            safe_env, safe_agent_step = self._load_env_agent('expert')
+            unsafe_env, unsafe_agent_step = self._load_env_agent('unsafe')
+            use_safe = True
+            ave_reward, ave_cost = 0, 0
+            for ptr in range(self.unsafe_slice.start, self.unsafe_slice.stop, self.max_ep_len):
+                if use_safe:
+                    data = self._roll_out_eposide(safe_env, safe_agent_step)
+                    while data['ep_cost'] <= self.cost_limit:
+                        data = self._roll_out_eposide(safe_env, safe_agent_step)
+                    use_safe = False
+                else:
+                    data = self._roll_out_eposide(unsafe_env, unsafe_agent_step)
+                    use_safe = True
+                self._obs[ptr:ptr + self.max_ep_len] = data['obs']
+                self._action[ptr:ptr + self.max_ep_len] = data['action']
+                self._reward[ptr:ptr + self.max_ep_len] = data['reward']
+                self._cost[ptr:ptr + self.max_ep_len] = data['cost']
+                self._done[ptr:ptr + self.max_ep_len] = data['done']
+                self._next_obs[ptr:ptr + self.max_ep_len] = data['next_obs']
+                progress_bar.update(self.max_ep_len)
+                ave_reward += data['ep_ret']
+                ave_cost += data['ep_cost']
+            ave_reward /= (self.unsafe_size / self.max_ep_len)
+            ave_cost /= (self.unsafe_size / self.max_ep_len)
+            ave_total_reward += (ave_reward * self.unsafe_proportion)
+            ave_total_cost += (ave_cost * self.unsafe_proportion)
+            print(f'unsafe data: ave_reward: {ave_reward:.2f}, ave_cost: {ave_cost:.2f}')
+
+        print(f'ave_total_reward: {ave_total_reward:.2f}, ave_total_cost: {ave_total_cost:.2f}')
+
 
     def save(self, save_dir: str, save_name: str):
         """save data
@@ -138,62 +210,48 @@ class Collector:
             next_obs=self._next_obs,
         )
 
-    def _roll_out(self, agent_type: Literal['random', 'expert', 'unsafe']):
-        slices = {
-            'random': self.random_slice,
-            'expert': self.expert_slice,
-            'unsafe': self.unsafe_slice,
-        }[agent_type]
+    def _roll_out_eposide(self, env, agent_step: callable):
+        obs_lst = []
+        act_lst = []
+        reward_lst = []
+        cost_lst = []
+        done_lst = []
+        next_obs_lst = []
 
-        print(f'Collecting {agent_type} data...')
-        num_episodes = 0
-        average_reward = 0
-        average_cost = 0
+        done = False
+        obs, _ = env.reset()
+        ep_ret, ep_costs, ep_len = 0.0, 0.0, 0
+        while not done:
+            act = agent_step(torch.as_tensor(obs, dtype=torch.float32))
+            next_obs, reward, cost, terminated, truncated, _ = env.step(act)
 
-        env, agent_step = self._load_env_agent(agent_type)
-        max_ep_len = env.max_ep_len
+            if terminated or truncated: # for fixed length rollout
+                done = True
 
-        obs, info = env.reset()  # pylint: disable=unused-variable
-        obs = torch.as_tensor(obs, dtype=torch.float32)
-        step = 0
-        ep_reward = 0
-        ep_cost = 0
+            obs_lst.append(obs)
+            act_lst.append(act)
+            reward_lst.append(reward)
+            cost_lst.append(cost)
+            done_lst.append(float(done))
+            next_obs_lst.append(next_obs)
 
-        progess_bar = tqdm.tqdm(total=slices.stop - slices.start)
+            ep_ret += reward
+            ep_costs += cost
+            ep_len += 1
 
-        for i in range(slices.start, slices.stop):
-            act = agent_step(obs)
-            next_obs, rew, cost, terminated, truncated, _ = env.step(act.numpy())
+            obs = next_obs
 
-            ep_reward += rew
-            ep_cost += cost
-
-            self._obs[i] = obs.numpy()
-            self._action[i] = act.numpy()
-            self._reward[i] = rew
-            self._cost[i] = cost
-            self._done[i] = terminated or truncated
-            self._next_obs[i] = next_obs
-
-            obs = torch.as_tensor(next_obs, dtype=torch.float32)
-            step += 1
-            progess_bar.update(1)
-
-            if step == max_ep_len or terminated:
-                obs, info = env.reset()
-                obs = torch.as_tensor(obs, dtype=torch.float32)
-                step = 0
-                num_episodes += 1
-                average_reward += ep_reward
-                average_cost += ep_cost
-                ep_reward = 0
-                ep_cost = 0
-
-        average_reward /= num_episodes
-        average_cost /= num_episodes
-        print(
-            f'collected {agent_type} data, average reward: {average_reward}, average cost: {average_cost}'
-        )
+        return {
+            'obs': np.array(obs_lst),
+            'action': np.array(act_lst),
+            'reward': np.array(reward_lst),
+            'cost': np.array(cost_lst),
+            'done': np.array(done_lst),
+            'next_obs': np.array(next_obs_lst),
+            'ep_ret': ep_ret,
+            'ep_cost': ep_costs,
+            'ep_len': ep_len,
+        }
 
     def _load_env_agent(self, agent_type: Literal['random', 'expert', 'unsafe']):
         # load env
@@ -225,7 +283,7 @@ class Collector:
             )
 
             def agent_step(obs):
-                return actor.predict(obs)
+                return actor.predict(obs).numpy()
 
         else:
             # load path
@@ -283,7 +341,7 @@ class Collector:
                 with torch.no_grad():
                     obs = obs_oms(obs)
                     action = actor.predict(obs, deterministic=False)
-                return action
+                return action.numpy()
 
             agent_step = model_step
 
