@@ -47,6 +47,7 @@ class ConstraintActorQCritic(ActorQCritic):
             activation=self.ac_kwargs.val.activation,
             weight_initialization_mode=model_cfgs.weight_initialization_mode,
             shared=model_cfgs.shared_weights,
+            num_critics=2,
         )
 
     def step(self, obs, deterministic=False):

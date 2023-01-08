@@ -21,38 +21,39 @@ defaults:
   # The environment wrapper type
   wrapper_type: OffPolicyEnvWrapper
   # Number of epochs
-  epochs: 500
+  epochs: 100
   # Number of steps per epoch
-  steps_per_epoch: 6000
+  steps_per_epoch: 4000
   # Update after `update_after` steps
   update_after: 1000
   # Update every `update_every` steps
   update_every: 50
   # Check if all models own the same parameter values every `check_freq` epoch
-  check_freq: 25
+  check_freq: `
   # Save model to disk every `check_freq` epochs
   save_freq: 10
   # The max length of per epoch
-  max_ep_len: 1000
+  max_ep_len: 500
   # The number of test episodes
   num_test_episodes: 10
   # The learning rate of Actor network
   actor_lr: 0.0003
   # The learning rate of Critic network
   critic_lr: 0.001
+  # if ajustable temperature
+  use_adjustable_temperature: True
+  # init_temperature
+  init_temperature: 1
+  # alpha lr
+  alpha_lr: 0.001
   # The soft update coefficient
-  polyak: 0.999
+  polyak: 0.995
   # The discount factor of GAE
   gamma: 0.99
   # Actor perdorm random action before `start_steps` steps
   start_steps: 10000
   # The Address for saving training process data
   data_dir: "./runs"
-  ## ---------------------------Basic configurations for derived class SAC---------------------- ##
-  # The entropy coefficient
-  alpha: 0.2
-  # The learning rate of Alpha
-  alpha_gamma: 0.99
 
   # ---------------------------------------Optional Configuration-------------------------------- #
   ## -----------------------------------Configuration For Cost Critic--------------------------- ##

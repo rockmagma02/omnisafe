@@ -97,6 +97,7 @@ class OffPolicyEnvWrapper:
         deterministic,
         use_rand_action,
         ep_steps,
+        test=False,
     ):
         """collect data and store to experience buffer."""
         for _ in range(ep_steps):
@@ -131,25 +132,43 @@ class OffPolicyEnvWrapper:
                 done = False if ep_len >= self.max_ep_len else done
                 buf.store(obs, action, reward, cost, obs_next, done)
                 if done or ep_len >= self.max_ep_len:
-                    logger.store(
-                        **{
-                            'Metrics/EpRet': ep_ret,
-                            'Metrics/EpLen': ep_len,
-                            'Metrics/EpCost': ep_cost,
-                        }
-                    )
+                    if not test:
+                        logger.store(
+                            **{
+                                'Metrics/EpRet': ep_ret,
+                                'Metrics/EpLen': ep_len,
+                                'Metrics/EpCost': ep_cost,
+                            }
+                        )
+                    else:
+                        logger.store(
+                            **{
+                                'Test/EpRet': ep_ret,
+                                'Test/EpLen': ep_len,
+                                'Test/EpCost': ep_cost,
+                            }
+                        )
                     self.curr_o, _ = self.env.reset(seed=self.seed)
                     self.ep_ret, self.ep_cost, self.ep_len = 0, 0, 0
 
             else:
                 if done or ep_len >= self.max_ep_len:
-                    logger.store(
-                        **{
-                            'Test/EpRet': ep_ret,
-                            'Test/EpLen': ep_len,
-                            'Test/EpCost': ep_cost,
-                        }
-                    )
+                    if not test:
+                        logger.store(
+                            **{
+                                'Metrics/EpRet': ep_ret,
+                                'Metrics/EpLen': ep_len,
+                                'Metrics/EpCost': ep_cost,
+                            }
+                        )
+                    else:
+                        logger.store(
+                            **{
+                                'Test/EpRet': ep_ret,
+                                'Test/EpLen': ep_len,
+                                'Test/EpCost': ep_cost,
+                            }
+                        )
                     self.curr_o, _ = self.env.reset(seed=self.seed)
                     self.ep_ret, self.ep_cost, self.ep_len = 0, 0, 0
 
