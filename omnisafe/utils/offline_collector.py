@@ -92,6 +92,7 @@ class Collector:
         self._cost = np.zeros(size, dtype=np.float32)
         self._done = np.zeros(size, dtype=np.float32)
         self._next_obs = np.zeros(combined_shape(size, self._obs_dim), dtype=np.float32)
+        self._pos = np.zeros((size, 3), dtype=np.float32)
 
         ptr: int = 0
         self.random_slice = None
@@ -124,6 +125,7 @@ class Collector:
                 self._cost[ptr:ptr + self.max_ep_len] = data['cost']
                 self._done[ptr:ptr + self.max_ep_len] = data['done']
                 self._next_obs[ptr:ptr + self.max_ep_len] = data['next_obs']
+                self._pos[ptr:ptr + self.max_ep_len] = data['pos']
                 progress_bar.update(self.max_ep_len)
                 ave_reward += data['ep_ret']
                 ave_cost += data['ep_cost']
@@ -146,6 +148,7 @@ class Collector:
                 self._cost[ptr:ptr + self.max_ep_len] = data['cost']
                 self._done[ptr:ptr + self.max_ep_len] = data['done']
                 self._next_obs[ptr:ptr + self.max_ep_len] = data['next_obs']
+                self._pos[ptr:ptr + self.max_ep_len] = data['pos']
                 progress_bar.update(self.max_ep_len)
                 ave_reward += data['ep_ret']
                 ave_cost += data['ep_cost']
@@ -175,6 +178,7 @@ class Collector:
                 self._cost[ptr:ptr + self.max_ep_len] = data['cost']
                 self._done[ptr:ptr + self.max_ep_len] = data['done']
                 self._next_obs[ptr:ptr + self.max_ep_len] = data['next_obs']
+                self._pos[ptr:ptr + self.max_ep_len] = data['pos']
                 progress_bar.update(self.max_ep_len)
                 ave_reward += data['ep_ret']
                 ave_cost += data['ep_cost']
@@ -217,11 +221,13 @@ class Collector:
         cost_lst = []
         done_lst = []
         next_obs_lst = []
+        pos_lst = []
 
         done = False
         obs, _ = env.reset()
         ep_ret, ep_costs, ep_len = 0.0, 0.0, 0
         while not done:
+            pos = env.task.task.robot_pos
             act = agent_step(torch.as_tensor(obs, dtype=torch.float32))
             next_obs, reward, cost, terminated, truncated, _ = env.step(act)
 
@@ -234,11 +240,11 @@ class Collector:
             cost_lst.append(cost)
             done_lst.append(float(done))
             next_obs_lst.append(next_obs)
+            pos_lst.append(pos)
 
             ep_ret += reward
             ep_costs += cost
             ep_len += 1
-
             obs = next_obs
 
         return {
@@ -251,6 +257,7 @@ class Collector:
             'ep_ret': ep_ret,
             'ep_cost': ep_costs,
             'ep_len': ep_len,
+            'pos': np.array(pos_lst)
         }
 
     def _load_env_agent(self, agent_type: Literal['random', 'expert', 'unsafe']):
