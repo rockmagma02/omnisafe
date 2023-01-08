@@ -213,6 +213,10 @@ class Collector:
             done=self._done,
             next_obs=self._next_obs,
         )
+        np.savez(
+            os.path.join(save_dir, save_name[:-4]+'position'),
+            pos=self._pos
+        )
 
     def _roll_out_eposide(self, env, agent_step: callable):
         obs_lst = []
@@ -227,7 +231,7 @@ class Collector:
         obs, _ = env.reset()
         ep_ret, ep_costs, ep_len = 0.0, 0.0, 0
         while not done:
-            pos = env.task.task.robot_pos
+            pos = env.env.task.robot_pos
             act = agent_step(torch.as_tensor(obs, dtype=torch.float32))
             next_obs, reward, cost, terminated, truncated, _ = env.step(act)
 
