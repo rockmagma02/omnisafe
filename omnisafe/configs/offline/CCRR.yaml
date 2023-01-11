@@ -21,7 +21,7 @@ defaults:
   # The environment wrapper type
   wrapper_type: OfflineEnvWrapper
   # Number of epochs
-  epochs: 1000
+  epochs: 200
   # Reward discounted factor
   gamma: 0.99
   # Scale of reward
@@ -29,7 +29,7 @@ defaults:
   # Scale of cost
   cost_scale: 1
   # Number of grad steps per epoch
-  grad_steps_per_epoch: 10
+  grad_steps_per_epoch: 5000
   # Number of batch sizes
   batch_size: 256
   # Save model to disk
@@ -80,4 +80,4 @@ defaults:
   # Lagrange upper bound
   lagrangian_upper_bound: 10
   # When begining update lagrange multiplier, because need time to fit Qc
-  begin_update_lag_epoch: 150
+  begin_update_lag_epoch: 30

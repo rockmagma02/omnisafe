@@ -20,6 +20,8 @@ from omnisafe.algorithms.offline.c_crr import CCRR
 from omnisafe.algorithms.offline.coptidice import COptiDICE
 from omnisafe.algorithms.offline.crr import CRR
 from omnisafe.algorithms.offline.vae_bc import VAEBC
+from omnisafe.algorithms.offline.optidice import OptiDICE
+from omnisafe.algorithms.offline.pru import PRU
 
 
 __all__ = [
@@ -29,4 +31,6 @@ __all__ = [
     'CCRR',
     'COptiDICE',
     'VAEBC',
+    'OptiDICE',
+    'PRU'
 ]

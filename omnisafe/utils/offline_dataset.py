@@ -90,7 +90,7 @@ class OfflineDataset(Dataset):
 
         return obs, action, reward, cost, done, next_obs
 
-    def get_loader(self, batch_size: int, shuffle: bool = True):
+    def get_loader(self, batch_size: int, shuffle: bool = True, infinite: bool = True):
         """Return a data loader for the dataset.
 
         Args:
@@ -107,7 +107,10 @@ class OfflineDataset(Dataset):
                 for data in dataloader:
                     yield data
 
-        return infinite_dataloader()
+        if infinite:
+            return infinite_dataloader()
+        else:
+            return dataloader
 
 
 class OfflineDatasetWithInitObs(OfflineDataset):

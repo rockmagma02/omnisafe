@@ -26,7 +26,7 @@ from omnisafe.algorithms.model_based import CAP, MBPPOLag, SafeLOOP
 from omnisafe.algorithms.off_policy import DDPG, SAC, SDDPG, TD3, DDPGLag, SACLag, TD3Lag
 
 # Offline Safe
-from omnisafe.algorithms.offline import BCQ, CCRR, CRR, VAEBC, BCQLag
+from omnisafe.algorithms.offline import OptiDICE, VAEBC, BCQ, BCQLag, CRR, CCRR, COptiDICE, PRU
 
 # On-Policy Safe
 from omnisafe.algorithms.on_policy import (

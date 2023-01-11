@@ -56,3 +56,43 @@ class ObsDecoder(nn.Module):
         if self.out_dim == 1:
             return self.net(obs).squeeze(-1)
         return self.net(obs)
+
+
+class ObsActDecoder(nn.Module):
+    """Abstract base class for observation, action decoder."""
+
+    # pylint: disable-next=too-many-arguments
+    def __init__(
+        self,
+        obs_dim: int,
+        act_dim: int,
+        out_dim: int,
+        hidden_sizes: list,
+        activation: Activation = 'relu',
+        weight_initialization_mode: InitFunction = 'xavier_uniform',
+    ):
+        nn.Module.__init__(self)
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.out_dim = out_dim
+        self.weight_initialization_mode = weight_initialization_mode
+        self.activation = activation
+        self.hidden_sizes = hidden_sizes
+        self.net = build_mlp_network(
+            [obs_dim + act_dim] + list(hidden_sizes) + [out_dim],
+            activation=activation,
+            weight_initialization_mode=weight_initialization_mode,
+        )
+
+    def forward(self, obs: torch.Tensor, act: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            obs (torch.Tensor): Observation.
+
+        Returns:
+            torch.Tensor: Decoded observation.
+        """
+        if self.out_dim == 1:
+            return self.net(torch.cat([obs, act], dim=-1)).squeeze(-1)
+        return self.net(torch.cat([obs, act], dim=-1))

@@ -33,11 +33,11 @@ defaults:
   # Number of epoisodes to run when evaluate
   eval_episodes: 30
   # CUDA or CPU device
-  device: 'cuda:0'
+  device: 'cuda:1'
   # The Address for saving training process data
   data_dir: './runs/offline'
   # The path of dataset
-  dataset_path: './runs/data/SafetyPointCircle0-v0-mixed-std02.npz'
+  dataset_path: './runs/data/SafetyPointCircle0-v0-mixed-beta0.5.npz'
   ## ---------------------------------------Configuration For Model----------------------------- ##
   model_cfgs:
     # The mode to initiate the weight of network, choosing from "kaiming_uniform", "xavier_normal", "glorot" and "orthogonal".
@@ -48,14 +48,12 @@ defaults:
       hidden_sizes: [256, 256, 256]
       # Type of activation functon, choosing from "tanh", "relu", "sigmoid", "identity", "softplus"
       activation: relu
-    # Configuration of Nu network
-    nu_net_cfgs:
+    v_cfgs:
       # Size of hidden layers
       hidden_sizes: [256, 256, 256]
       # Type of activation functon, choosing from "tanh", "relu", "sigmoid", "identity", "softplus"
       activation: relu
-    # Configuration of Chi network
-    chi_net_cfgs:
+    e_cfgs:
       # Size of hidden layers
       hidden_sizes: [256, 256, 256]
       # Type of activation functon, choosing from "tanh", "relu", "sigmoid", "identity", "softplus"
@@ -63,26 +61,13 @@ defaults:
   # The learning rate of Actor network
   actor_lr: 0.0003
   # The learning rate of Nu network
-  nu_net_lr: 0.0003
+  v_lr: 0.0003
   # The learning rate of chi network
-  chi_net_lr: 0.0003
-  # Initial value of lagrangian multiplier
-  lamb_init: 0
-  # Type of lagrangian optimizer
-  lamb_optimizer: "Adam"
-  # Learning rate of lagrangian multiplier
-  lamb_lr: 0.035
-  # Initial value of tau multiplier
-  tau_init: 1
-  # Type of tau optimizer
-  tau_optimizer: "Adam"
-  # Learning rate of tau multiplier
-  tau_lr: 0.0003
-  # The type of f-divergence function
-  fn_type: softchi
-  # Regularizer on Df(d|dD).
-  alpha: 0.0008
-  # Adjusts the degree of overestimation of cost value.
-  cost_ub_eps: 0.05
-  # Tolerance of constraint violation
-  cost_limit: 0.06
+  e_lr: 0.0003
+  lamb_v_lr: 0.0003
+  lamb_e_lr: 0.0003
+  fn_type: elu
+  alpha_init: 1.0
+  alpha_lr: 0.0003
+  dice_alpha: 1.0
+  warmup_epochs: 0
