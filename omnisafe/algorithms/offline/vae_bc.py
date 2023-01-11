@@ -54,7 +54,9 @@ class VAEBC:  # pylint: disable=too-many-instance-attributes
         self.env = wrapper_registry.get(self.wrapper_type)(env_id)
 
         # set logger and save config
-        self.logger = Logger(exp_name=cfgs.exp_name, data_dir=cfgs.data_dir, seed=cfgs.seed)
+        import os
+        data_dir = os.path.join(cfgs.data_dir, cfgs.dataset_path[12:-4])
+        self.logger = Logger(exp_name=cfgs.exp_name, data_dir=data_dir, seed=cfgs.seed)
         self.logger.save_config(namedtuple2dict(cfgs))
         # set seed
         seed = int(cfgs.seed)

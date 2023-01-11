@@ -23,7 +23,7 @@ defaults:
   # Number of epochs
   epochs: 1000
   # Number of grad steps per epoch
-  grad_steps_per_epoch: 10
+  grad_steps_per_epoch: 1000
   # Number of batch sizes
   batch_size: 256
   # Save model to disk

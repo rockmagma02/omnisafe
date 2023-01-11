@@ -8,20 +8,38 @@ import torch
 
 import omnisafe
 
-USE_CUDA = False
+USE_CUDA = True
 # CPU config
 PER_THREADS = 6
 MAX_SUBPROCESSES = 11
 # GPU config
 PROSESS_PER_GPU = 3
-GPUS = [0, 1, 2, 3, 4, 5, 6, 7]
+GPUS = [3, 4, 5]
 
 USE_REDIRECTION = True
 
-grid_cfgs = {
+grid_cfgs_1 = {
     'env_id': ['SafetyPointGoal1-v0'],
-    'algo': ['CPO', 'PPO', 'PPOLag']
+    'data_dir': ['./runs/benchmark'],
+    'algo': ['VAEBC'],
+    'seed': [0, 100, 200],
+    'dataset_path': [
+        './runs/data/SafetyPointGoal1-v0-mixed-beta0.5.npz',
+        './runs/data/SafetyPointGoal1-v0-mixed-beta0.25.npz',
+        './runs/data/SafetyPointGoal1-v0-mixed-beta0.75.npz'
+    ]
 }
+
+# grid_cfgs_2 = {
+#     'env_id': ['SafetyPointCircle0-v0'],
+#     'algo': ['COptiDICE'],
+#     'data_dir': ['./runs/alpha'],
+#     'alpha': [0.005, 0.0008, 0.0005, 0.0003, 0.0001, 0.00001],
+#     'cost_ub_eps': [0.05],
+#     'dataset_path': [
+#         './runs/data/SafetyPointCircle0-v0-mixed-beta0.5.npz'
+#     ]
+# }
 
 class Mission:
     env_id: str
@@ -63,13 +81,14 @@ def train(mission: Mission, device: int = None, mission_id: int = None):
         if not os.path.exists('./runs/log'):
             os.mkdir('./runs/log')
         sys.stdout = open(f'./runs/log/{mission.algo}_{mission.env_id}_{mission_id}.log', 'w')
+        sys.stderr = open(f'./runs/log/{mission.algo}_{mission.env_id}_{mission_id}.err', 'w')
 
     agent = omnisafe.Agent(mission.algo, mission.env_id, custom_cfgs=mission.custom_cfgs)
     agent.learn()
 
 
 if __name__ == '__main__':
-    missions = cfgs2mission(grid_cfgs)
+    missions = cfgs2mission(grid_cfgs_1) # + cfgs2mission(grid_cfgs_2)
     if USE_CUDA:
         tasks = {k: 0 for k in GPUS}
         pool = multiprocessing.Pool(processes=len(GPUS) * PROSESS_PER_GPU)

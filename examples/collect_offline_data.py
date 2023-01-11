@@ -19,17 +19,18 @@ from omnisafe.utils.offline_collector import Collector
 
 if __name__ == '__main__':
     col = Collector(
-        env_id='SafetyCarRun0-v0',
+        env_id='SafetyPointGoal1-v0',
         size=2_000_000,
-        random_proportion=1.0,
-        expert_proportion=0.0,
-        expert_path='./runs/SafetyCarRun0-v0/CPO/seed-000-2023-01-01_03-59-02',
-        expert_model_name='model 499.pt',
-        unsafe_proportion=0.0,
-        unsafe_path='./runs/SafetyCarRun0-v0/PPO/seed-000-2023-01-01_02-05-24',
-        unsafe_model_name='model 299.pt',
-        noise_std=0.3,
+        random_proportion=0.0,
+        expert_proportion=0.25,
+        expert_path='./runs/SafetyPointGoal1-v0/CPO/seed-000-2023-01-08_20-23-34',
+        expert_model_name='model 299.pt',
+        unsafe_proportion=0.75,
+        unsafe_path='./runs/SafetyPointGoal1-v0/PPO/seed-000-2023-01-08_20-23-34',
+        unsafe_model_name='model 199.pt',
+        noise_std=0.2,
+        cost_limit = 30.0
     )
     col.collect()
-    save_name = 'SafetyCarRun0-v0-random-std03'
+    save_name = 'SafetyPointGoal1-v0-mixed-beta0.25'
     col.save('./runs/data/', save_name)

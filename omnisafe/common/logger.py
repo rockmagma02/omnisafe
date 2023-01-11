@@ -51,6 +51,7 @@ class Logger:
         if seed is not None:
             subfolder = '-'.join(['seed', str(seed).zfill(3)])
             relpath = '-'.join([subfolder, relpath])
+        relpath += str(os.getpid())
         self.log_dir = os.path.join(data_dir, exp_name, relpath)
         self.debug = debug if proc_id() == 0 else False
         self.level = level

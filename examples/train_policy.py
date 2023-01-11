@@ -25,7 +25,7 @@ if __name__ == '__main__':
         '--algo',
         type=str,
         metavar='ALGO',
-        default='PPOLag',
+        default='CCRR',
         help='Algorithm to train',
         choices=omnisafe.ALGORITHMS['all'],
     )
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         '--env-id',
         type=str,
         metavar='ENV',
-        default='SafetyPointGoal1-v0',
+        default='SafetyPointCircle0-v0',
         help='The name of test environment',
     )
     parser.add_argument(
