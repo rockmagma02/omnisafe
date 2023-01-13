@@ -37,7 +37,7 @@ defaults:
   # Number of epoisodes to run when evaluate
   eval_episodes: 30
   # CUDA or CPU device
-  device: 'cuda:0'
+  device: 'cuda:7'
   # The Address for saving training process data
   data_dir: './runs/offline'
   # The path of dataset
@@ -82,3 +82,4 @@ defaults:
   beta_out: [0.01, 0.002, 0.001]
   time_step: [0, 50000, 1000000]
   vae_epochs: 3
+  cost_limit: 30

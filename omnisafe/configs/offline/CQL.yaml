@@ -37,7 +37,7 @@ defaults:
   # Number of epoisodes to run when evaluate
   eval_episodes: 30
   # CUDA or CPU device
-  device: 'cuda:0'
+  device: 'cuda:7'
   # The Address for saving training process data
   data_dir: './runs/offline'
   # The path of dataset
@@ -59,15 +59,6 @@ defaults:
       # Type of activation functon, choosing from "tanh", "relu", "sigmoid", "identity", "softplus"
       activation: relu
     # Configuration of Vae network
-    vae_cfgs:
-      # Size of hidden layers
-      hidden_sizes: [750, 750]
-      # size of latent dim
-      latent_dim: 4
-      # Type of activation functon, choosing from "tanh", "relu", "sigmoid", "identity", "softplus"
-      activation: relu
-  # The learning rate of Vae
-  vae_lr: 0.001
   # The learning rate of Actor network
   actor_lr: 0.001
   # The learning rate of Critic network
@@ -78,7 +69,6 @@ defaults:
   smooth_coeff: 0.005
   alpha_init: 1
   alpha_lr: 0.001
-  beta_in: 0.001
-  beta_out: [0.01, 0.002, 0.001]
-  time_step: [0, 50000, 1000000]
-  vae_epochs: 3
+  lagrange_thresh: 5
+  start_train_policy: 10
+  min_q_weight: 1

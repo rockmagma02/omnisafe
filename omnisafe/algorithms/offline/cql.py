@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Implementation of the pru algorithm."""
+"""Implementation of the cql algorithm."""
 
 import time
 from copy import deepcopy
@@ -28,12 +28,11 @@ from omnisafe.models import ActorBuilder, CriticBuilder
 from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.config_utils import namedtuple2dict
 from omnisafe.utils.offline_dataset import OfflineDataset
-from omnisafe.utils.schedule import ConstantSchedule, PiecewiseSchedule
 from omnisafe.wrappers import wrapper_registry
 
 
 @registry.register
-class PRU:
+class CQL:
     def __init__(self, env_id: str, cfgs=None) -> None:
         """Initialize the COptiDICE algorithm.
 
@@ -57,17 +56,6 @@ class PRU:
         torch.manual_seed(seed)
         np.random.seed(seed)
         self.env.set_seed(seed)
-
-        # setup model
-        self.vae = VAE(
-            obs_dim=self.env.observation_space.shape[0],
-            act_dim=self.env.action_space.shape[0],
-            hidden_sizes=cfgs.model_cfgs.vae_cfgs.hidden_sizes,
-            latent_dim=cfgs.model_cfgs.vae_cfgs.latent_dim,
-            activation=cfgs.model_cfgs.vae_cfgs.activation,
-            weight_initialization_mode=cfgs.model_cfgs.weight_initialization_mode,
-        )
-        self.vae_optimizer = set_optimizer('Adam', module=self.vae, learning_rate=cfgs.vae_lr)
 
         builder = ActorBuilder(
             obs_dim=self.env.observation_space.shape[0],
@@ -95,18 +83,14 @@ class PRU:
             'Adam', module=self.critic, learning_rate=cfgs.critic_lr
         )
 
-        self.beta_in = ConstantSchedule(cfgs.beta_in)
-        self.beta_out = PiecewiseSchedule(
-            [(cfgs.time_step[0], cfgs.beta_out[0]),
-            (cfgs.time_step[1], cfgs.beta_out[1]),
-            (cfgs.time_step[2], cfgs.beta_out[2])],
-            outside_value=cfgs.beta_out[2],
-        )
-
         alpha_init = torch.as_tensor(cfgs.alpha_init, dtype=torch.float32, device=self.cfgs.device)
         self.log_alpha = nn.Parameter(torch.log(alpha_init), requires_grad=True)
         self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=cfgs.alpha_lr)
         self.target_entropy = -torch.prod(torch.as_tensor(self.env.action_space.shape, dtype=torch.float32)).item()
+
+        self.target_action_gap = self.cfgs.lagrange_thresh
+        self.log_alpha_prime = nn.Parameter(torch.zeros(1, device=self.cfgs.device), requires_grad=True)
+        self.alpha_prime_optimizer = torch.optim.Adam([self.log_alpha_prime], lr=cfgs.critic_lr)
 
         # setup dataset
         self.dataset = OfflineDataset(cfgs.dataset_path, device=cfgs.device)
@@ -116,7 +100,6 @@ class PRU:
         self.actor.change_device(cfgs.device)
         self.critic.to(cfgs.device)
         self.target_critic.to(cfgs.device)
-        self.vae.to(cfgs.device)
 
         what_to_save = {
             'actor': self.actor,
@@ -134,10 +117,7 @@ class PRU:
         """Learn the model."""
         self.logger.log('Start learning...')
         self.start_time = time.time()
-        vae_loader = self.dataset.get_loader(self.cfgs.batch_size * 20, infinite=False)
         loader = self.dataset.get_loader(self.cfgs.batch_size)
-
-        self._train_vae(vae_loader)
 
         for epoch in range(self.cfgs.epochs):
             self.epoch_step = epoch
@@ -157,26 +137,10 @@ class PRU:
 
             # save model
             if (epoch + 1) % self.cfgs.save_freq == 0:
-                self.logger.torch_save(itr=epoch)
+                self.logger.torch_save(epoch)
 
         self.logger.log('Finish learning...')
         self.logger.close()
-
-    def _train_vae(self, loader):
-        """Train the VAE."""
-        self.logger.log('Start training VAE...')
-
-        for _ in range(self.cfgs.vae_epochs):
-            for grad_step, batch in enumerate(loader):
-                obs, act, reward, cost, done, next_obs = batch  # pylint: disable=unused-variable
-                recon_loss, kl_loss = self.vae.loss(obs, act)
-                loss = recon_loss + 1.5 * kl_loss
-                self.vae_optimizer.zero_grad()
-                loss.backward()
-                self.vae_optimizer.step()
-                self.logger.log(f'Iteraion: {grad_step}, VAE loss: {loss.item():.4f}, KL loss: {kl_loss.item():.4f}, Recon loss: {recon_loss.item():.4f}')
-
-        self.logger.log('Finish training VAE...')
 
     def _train(self, grad_step, batch):
         obs, act, reward, cost, done, next_obs = batch
@@ -188,15 +152,32 @@ class PRU:
         self.alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.alpha_optimizer.step()
-
         alpha = self.log_alpha.exp()
 
-        act_next = self.actor.predict(next_obs)
+        qr1_sample, qr2_sample = self.critic(obs, act_sample)
+        qr_sample = torch.min(qr1_sample, qr2_sample)
+
+        if self.epoch_step < self.cfgs.start_train_policy:
+            _, data_logp = self.actor(obs, act)
+            policy_loss = (alpha * logp_sample - data_logp).mean()
+        else:
+            policy_loss = (alpha * logp_sample - qr_sample).mean()
+
+        self.actor_optimizer.zero_grad()
+        policy_loss.backward(retain_graph=True)
+        self.actor_optimizer.step()
 
         qr1, qr2 = self.critic(obs, act)
-        qr1_next, qr2_next = self.target_critic(next_obs, act_next)
-        uncertainty = self.uncertainty(obs, act)
-        uncertainty_next = self.uncertainty(next_obs, act_next)
+
+        next_act = self.actor.predict(next_obs)
+        # curr_act = self.actor.predict(obs)
+
+        qr1_target, qr2_target = self.target_critic(next_obs, next_act)
+        qr_target = torch.min(qr1_target, qr2_target)
+        qr_target = reward + self.cfgs.gamma * (1 - done) * qr_target
+        qr_target = qr_target.detach()
+
+        critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
 
         rand_action = (
             torch.FloatTensor(batch_size * self.cfgs.num_sample, act.shape[1])
@@ -205,52 +186,48 @@ class PRU:
         )
         obs_repeat = obs.unsqueeze(1).repeat(1, self.cfgs.num_sample, 1).view(batch_size * self.cfgs.num_sample, obs.shape[1])
         next_obs_repeat = next_obs.unsqueeze(1).repeat(1, self.cfgs.num_sample, 1).view(batch_size * self.cfgs.num_sample, next_obs.shape[1])
-        act_curr = self.actor.predict(obs_repeat)
-        act_next = self.actor.predict(next_obs_repeat)
-
+        act_curr, logp_curr = self.actor.predict(obs_repeat, need_log_prob=True)
+        act_next, logp_next = self.actor.predict(next_obs_repeat, need_log_prob=True)
         qr1_rand, qr2_rand = self.critic(obs_repeat, rand_action)
         qr1_ood_curr, qr2_ood_curr = self.critic(obs_repeat, act_curr)
         qr1_ood_next, qr2_ood_next = self.critic(next_obs_repeat, act_next)
-        uncertainty_rand = self.uncertainty(obs_repeat, rand_action)
-        uncertainty_ood_curr = self.uncertainty(obs_repeat, act_curr)
-        uncertainty_ood_next = self.uncertainty(next_obs_repeat, act_next)
+        qr1_rand = qr1_rand.view(batch_size, self.cfgs.num_sample)
+        qr2_rand = qr2_rand.view(batch_size, self.cfgs.num_sample)
+        qr1_ood_curr = qr1_ood_curr.view(batch_size, self.cfgs.num_sample)
+        qr2_ood_curr = qr2_ood_curr.view(batch_size, self.cfgs.num_sample)
+        qr1_ood_next = qr1_ood_next.view(batch_size, self.cfgs.num_sample)
+        qr2_ood_next = qr2_ood_next.view(batch_size, self.cfgs.num_sample)
+        logp_curr = logp_curr.view(batch_size, self.cfgs.num_sample)
+        logp_next = logp_next.view(batch_size, self.cfgs.num_sample)
 
-        beta_in = self.beta_in.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
-        beta_out = self.beta_out.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
-
-        qr_next = torch.min(qr1_next, qr2_next)
-        qr_target = reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)
-        qr_target = qr_target.detach()
-
-        critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
-
-        qr_ood_curr = torch.min(qr1_ood_curr, qr2_ood_curr)
-        qr_ood_next = torch.min(qr1_ood_next, qr2_ood_next)
-
-        qr_target_ood = torch.cat(
-            [
-                torch.max(qr_ood_curr - beta_out * uncertainty_ood_curr, torch.zeros_like(qr_ood_curr)),
-                torch.max(qr_ood_next - 0.001 * uncertainty_ood_next, torch.zeros_like(qr_ood_next)),
-            ], dim=0
+        random_density = torch.log(torch.as_tensor(0.5 ** act.shape[-1], device=self.cfgs.device))
+        cat_qr1 = torch.cat(
+            [qr1_rand - random_density, qr1_ood_next - logp_next.detach(), qr1_ood_curr - logp_curr.detach()],
+            dim=1
         )
-        qr_target_ood = qr_target_ood.detach()
+        cat_qr2 = torch.cat(
+            [qr2_rand - random_density, qr2_ood_next - logp_next.detach(), qr2_ood_curr - logp_curr.detach()],
+            dim=1
+        )
+        min_critic_loss1 = torch.logsumexp(cat_qr1, dim=1).mean() * self.cfgs.min_q_weight
+        min_critic_loss2 = torch.logsumexp(cat_qr2, dim=1).mean() * self.cfgs.min_q_weight
 
-        qr1_ood = torch.cat([qr1_ood_curr, qr1_ood_next], dim=0)
-        qr2_ood = torch.cat([qr2_ood_curr, qr2_ood_next], dim=0)
+        min_critic_loss1 = min_critic_loss1 - qr1.mean() * self.cfgs.min_q_weight
+        min_critic_loss2 = min_critic_loss2 - qr2.mean() * self.cfgs.min_q_weight
 
-        critic_loss_out = nn.functional.mse_loss(qr1_ood, qr_target_ood) + nn.functional.mse_loss(qr2_ood, qr_target_ood)
+        alpha_prime = torch.clamp(self.log_alpha_prime.exp(), min=0, max=1e6)
+        min_critic_loss1 = alpha_prime * (min_critic_loss1 - self.target_action_gap)
+        min_critic_loss2 = alpha_prime * (min_critic_loss2 - self.target_action_gap)
 
-        critic_loss = critic_loss_in + critic_loss_out
+        self.alpha_prime_optimizer.zero_grad()
+        alpha_prime_loss = (-min_critic_loss1 - min_critic_loss2) * 0.5
+        alpha_prime_loss.backward(retain_graph=True)
+        self.alpha_prime_optimizer.step()
+
+        critic_loss = critic_loss_in + min_critic_loss1 + min_critic_loss2
         self.critic_optimizer.zero_grad()
-        critic_loss.backward()
+        critic_loss.backward(retain_graph=True)
         self.critic_optimizer.step()
-
-        qr1_sample, qr2_sample = self.critic(obs, act_sample)
-        qr_sample = torch.min(qr1_sample, qr2_sample)
-        actor_loss = (alpha * logp_sample - qr_sample).mean()
-        self.actor_optimizer.zero_grad()
-        actor_loss.backward()
-        self.actor_optimizer.step()
 
         self._soft_update_target()
 
@@ -266,32 +243,16 @@ class PRU:
                     'Qr/target_Qr': qr_target[0].mean().item(),
                     'Qr/curr_Qr': qr_sample[0].mean().item(),
                     'Qr/rand_Qr': qr1_rand[0].mean().item(),
-                    'Qr/data-rand': (qr1[0].mean() - qr1_rand[0].mean()).item(),
-                    'Qr/data-curr': (qr1[0].mean() - qr_sample[0].mean()).item(),
 
-                    'Uncertainty/data_uncertainty': uncertainty[0].mean().item(),
-                    'Uncertainty/target_uncertainty': uncertainty_next[0].mean().item(),
-                    'Uncertainty/curr_uncertainty': uncertainty_ood_curr[0].mean().item(),
-                    'Uncertainty/rand_uncertainty': uncertainty_rand[0].mean().item(),
-                    'Uncertainty/data-rand': (uncertainty[0].mean() - uncertainty_rand[0].mean()).item(),
-                    'Uncertainty/data-curr': (uncertainty[0].mean() - uncertainty_ood_curr[0].mean()).item(),
-
+                    'Loss/actor_loss': policy_loss.item(),
                     'Loss/critic_loss': critic_loss.item(),
                     'Loss/critic_loss_in': critic_loss_in.item(),
-                    'Loss/critic_loss_out': critic_loss_out.item(),
-                    'Loss/actor_loss': actor_loss.item(),
-                    'Loss/alpha_loss': alpha_loss.item(),
+                    'Loss/min_critic_loss1': min_critic_loss1.item(),
 
-                    'Misc/alpha': alpha.item(),
-                    'Misc/beta_in': beta_in,
-                    'Misc/beta_out': beta_out,
+                    'Misc/alpha_prime': alpha_prime.item(),
+                    'Misc/alpha': self.log_alpha.exp().item(),
                 }
             )
-
-    def uncertainty(self, obs, act):
-        dist = self.vae.encode(obs, act)
-        kl = torch.distributions.kl.kl_divergence(dist, torch.distributions.Normal(0, 1)).sum(dim=1)
-        return kl * 1e6
 
     def _soft_update_target(self):
         for target_param, param in zip(self.target_critic.parameters(), self.critic.parameters()):
@@ -351,25 +312,14 @@ class PRU:
         self.logger.log_tabular('Qr/target_Qr')
         self.logger.log_tabular('Qr/curr_Qr')
         self.logger.log_tabular('Qr/rand_Qr')
-        self.logger.log_tabular('Qr/data-rand')
-        self.logger.log_tabular('Qr/data-curr')
 
-        self.logger.log_tabular('Uncertainty/data_uncertainty')
-        self.logger.log_tabular('Uncertainty/target_uncertainty')
-        self.logger.log_tabular('Uncertainty/curr_uncertainty')
-        self.logger.log_tabular('Uncertainty/rand_uncertainty')
-        self.logger.log_tabular('Uncertainty/data-rand')
-        self.logger.log_tabular('Uncertainty/data-curr')
-
+        self.logger.log_tabular('Loss/actor_loss')
         self.logger.log_tabular('Loss/critic_loss')
         self.logger.log_tabular('Loss/critic_loss_in')
-        self.logger.log_tabular('Loss/critic_loss_out')
-        self.logger.log_tabular('Loss/actor_loss')
-        self.logger.log_tabular('Loss/alpha_loss')
+        self.logger.log_tabular('Loss/min_critic_loss1')
 
         self.logger.log_tabular('Misc/alpha')
-        self.logger.log_tabular('Misc/beta_in')
-        self.logger.log_tabular('Misc/beta_out')
+        self.logger.log_tabular('Misc/alpha_prime')
 
         self.logger.log_tabular('Metrics/EpRet')
         self.logger.log_tabular('Metrics/EpCost')

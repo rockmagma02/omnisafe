@@ -33,7 +33,7 @@ from omnisafe.wrappers import wrapper_registry
 
 
 @registry.register
-class PRU:
+class PRUSafe:
     def __init__(self, env_id: str, cfgs=None) -> None:
         """Initialize the COptiDICE algorithm.
 
@@ -94,6 +94,16 @@ class PRU:
         self.critic_optimizer = set_optimizer(
             'Adam', module=self.critic, learning_rate=cfgs.critic_lr
         )
+        self.cost_critic = builder.build_critic('q', num_critics=2)
+        self.target_cost_critic = deepcopy(self.cost_critic)
+        self.cost_critic_optimizer = set_optimizer(
+            'Adam', module=self.cost_critic, learning_rate=cfgs.critic_lr
+        )
+        # self.value = builder.build_critic('v')
+        # self.target_value = deepcopy(self.value)
+        # self.value_optimizer = set_optimizer(
+        #     'Adam', module=self.value, learning_rate=cfgs.critic_lr
+        # )
 
         self.beta_in = ConstantSchedule(cfgs.beta_in)
         self.beta_out = PiecewiseSchedule(
@@ -116,6 +126,8 @@ class PRU:
         self.actor.change_device(cfgs.device)
         self.critic.to(cfgs.device)
         self.target_critic.to(cfgs.device)
+        self.cost_critic.to(cfgs.device)
+        self.target_cost_critic.to(cfgs.device)
         self.vae.to(cfgs.device)
 
         what_to_save = {
@@ -157,7 +169,7 @@ class PRU:
 
             # save model
             if (epoch + 1) % self.cfgs.save_freq == 0:
-                self.logger.torch_save(itr=epoch)
+                self.logger.torch_save()
 
         self.logger.log('Finish learning...')
         self.logger.close()
@@ -219,7 +231,7 @@ class PRU:
         beta_out = self.beta_out.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
 
         qr_next = torch.min(qr1_next, qr2_next)
-        qr_target = reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)
+        qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next))
         qr_target = qr_target.detach()
 
         critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
@@ -230,7 +242,7 @@ class PRU:
         qr_target_ood = torch.cat(
             [
                 torch.max(qr_ood_curr - beta_out * uncertainty_ood_curr, torch.zeros_like(qr_ood_curr)),
-                torch.max(qr_ood_next - 0.001 * uncertainty_ood_next, torch.zeros_like(qr_ood_next)),
+                torch.max(qr_ood_next - 0.0001 * uncertainty_ood_next, torch.zeros_like(qr_ood_next)),
             ], dim=0
         )
         qr_target_ood = qr_target_ood.detach()
@@ -242,7 +254,7 @@ class PRU:
 
         critic_loss = critic_loss_in + critic_loss_out
         self.critic_optimizer.zero_grad()
-        critic_loss.backward()
+        critic_loss.backward(retain_graph=True)
         self.critic_optimizer.step()
 
         qr1_sample, qr2_sample = self.critic(obs, act_sample)
@@ -266,15 +278,15 @@ class PRU:
                     'Qr/target_Qr': qr_target[0].mean().item(),
                     'Qr/curr_Qr': qr_sample[0].mean().item(),
                     'Qr/rand_Qr': qr1_rand[0].mean().item(),
-                    'Qr/data-rand': (qr1[0].mean() - qr1_rand[0].mean()).item(),
-                    'Qr/data-curr': (qr1[0].mean() - qr_sample[0].mean()).item(),
+                    # 'Qr/data-rand': (qr1[0].mean() - qr1_rand[0].mean()).item(),
+                    # 'Qr/data-curr': (qr1[0].mean() - qr_sample[0].mean()).item(),
 
                     'Uncertainty/data_uncertainty': uncertainty[0].mean().item(),
                     'Uncertainty/target_uncertainty': uncertainty_next[0].mean().item(),
                     'Uncertainty/curr_uncertainty': uncertainty_ood_curr[0].mean().item(),
                     'Uncertainty/rand_uncertainty': uncertainty_rand[0].mean().item(),
-                    'Uncertainty/data-rand': (uncertainty[0].mean() - uncertainty_rand[0].mean()).item(),
-                    'Uncertainty/data-curr': (uncertainty[0].mean() - uncertainty_ood_curr[0].mean()).item(),
+                    # 'Uncertainty/data-rand': (uncertainty[0].mean() - uncertainty_rand[0].mean()).item(),
+                    # 'Uncertainty/data-curr': (uncertainty[0].mean() - uncertainty_ood_curr[0].mean()).item(),
 
                     'Loss/critic_loss': critic_loss.item(),
                     'Loss/critic_loss_in': critic_loss_in.item(),
@@ -351,15 +363,20 @@ class PRU:
         self.logger.log_tabular('Qr/target_Qr')
         self.logger.log_tabular('Qr/curr_Qr')
         self.logger.log_tabular('Qr/rand_Qr')
-        self.logger.log_tabular('Qr/data-rand')
-        self.logger.log_tabular('Qr/data-curr')
+        # self.logger.log_tabular('Qr/data-rand')
+        # self.logger.log_tabular('Qr/data-curr')
+
+        self.logger.log_tabular('Qc/data_Qc')
+        self.logger.log_tabular('Qc/target_Qc')
+        # self.logger.log_tabular('Qc/curr_Qc')
+        self.logger.log_tabular('Qc/rand_Qc')
 
         self.logger.log_tabular('Uncertainty/data_uncertainty')
         self.logger.log_tabular('Uncertainty/target_uncertainty')
         self.logger.log_tabular('Uncertainty/curr_uncertainty')
         self.logger.log_tabular('Uncertainty/rand_uncertainty')
-        self.logger.log_tabular('Uncertainty/data-rand')
-        self.logger.log_tabular('Uncertainty/data-curr')
+        # self.logger.log_tabular('Uncertainty/data-rand')
+        # self.logger.log_tabular('Uncertainty/data-curr')
 
         self.logger.log_tabular('Loss/critic_loss')
         self.logger.log_tabular('Loss/critic_loss_in')
@@ -370,6 +387,7 @@ class PRU:
         self.logger.log_tabular('Misc/alpha')
         self.logger.log_tabular('Misc/beta_in')
         self.logger.log_tabular('Misc/beta_out')
+        self.logger.log_tabular('Misc/safe_rate')
 
         self.logger.log_tabular('Metrics/EpRet')
         self.logger.log_tabular('Metrics/EpCost')
