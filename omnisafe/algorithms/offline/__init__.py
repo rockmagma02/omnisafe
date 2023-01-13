@@ -23,6 +23,7 @@ from omnisafe.algorithms.offline.vae_bc import VAEBC
 from omnisafe.algorithms.offline.optidice import OptiDICE
 from omnisafe.algorithms.offline.pru import PRU
 from omnisafe.algorithms.offline.pru_safe import PRUSafe
+from omnisafe.algorithms.offline.pru_safe_pretrain import PRUSafePretrain
 from omnisafe.algorithms.offline.cql import CQL
 
 
@@ -37,4 +38,5 @@ __all__ = [
     'PRU',
     'CQL',
     'PRUSafe',
+    'PRUSafePretrain',
 ]

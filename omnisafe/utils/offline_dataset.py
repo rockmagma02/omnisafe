@@ -223,6 +223,7 @@ class OfflineDatasetWithSafeFlag(OfflineDataset):
         else:
             is_safe1 = np.full((1_000_000,), 1.)
             is_safe2 = np.full((1_000_000,), 0.)
+            is_safe = np.concatenate((is_safe1, is_safe2), axis=0)
 
         self.obs = torch.from_numpy(obs).float().to(device)
         self.action = torch.from_numpy(action).float().to(device)
@@ -230,6 +231,7 @@ class OfflineDatasetWithSafeFlag(OfflineDataset):
         self.cost = torch.from_numpy(cost).float().to(device)
         self.done = torch.from_numpy(done).float().to(device)
         self.next_obs = torch.from_numpy(next_obs).float().to(device)
+        self.is_safe = torch.from_numpy(is_safe).float().to(device)
 
         self.length = self.obs.shape[0]
 
@@ -241,7 +243,6 @@ class OfflineDatasetWithSafeFlag(OfflineDataset):
             self.obs_std = self.obs.std(dim=0)
             self.obs = (self.obs - self.obs_mean) / (self.obs_std + 1e-8)
             self.next_obs = (self.next_obs - self.obs_mean) / (self.obs_std + 1e-8)
-            self.init_obs = (self.init_obs - self.obs_mean) / (self.obs_std + 1e-8)
         else:
             self.obs_mean = torch.zeros_like(self.obs[0])
             self.obs_std = torch.ones_like(self.obs[0])
@@ -257,6 +258,6 @@ class OfflineDatasetWithSafeFlag(OfflineDataset):
         cost = self.cost[idx]
         done = self.done[idx]
         next_obs = self.next_obs[idx]
-        init_obs = self.init_obs[idx]
+        is_safe = self.is_safe[idx]
 
-        return obs, action, reward, cost, done, next_obs, init_obs
+        return obs, action, reward, cost, done, next_obs, is_safe
