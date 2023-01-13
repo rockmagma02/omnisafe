@@ -33,8 +33,10 @@ class VCritic(Critic):
         activation: Activation = 'relu',
         weight_initialization_mode: InitFunction = 'xavier_uniform',
         shared: nn.Module = None,
+        num_critics: int = 1,
     ) -> None:
         """Initialize."""
+        self.num_critics = num_critics
         Critic.__init__(
             self,
             obs_dim=obs_dim,
@@ -44,19 +46,16 @@ class VCritic(Critic):
             weight_initialization_mode=weight_initialization_mode,
             shared=shared,
         )
-        if shared is not None:
-            value_head = build_mlp_network(
-                sizes=[hidden_sizes[-1], 1],
+        self.critic_list = []
+        for idx in range(num_critics):
+            net = build_mlp_network(
+                [obs_dim + act_dim] + hidden_sizes + [1],
                 activation=activation,
                 weight_initialization_mode=weight_initialization_mode,
             )
-            self.net = nn.Sequential(shared, value_head)
-        else:
-            self.net = build_mlp_network(
-                [obs_dim] + list(hidden_sizes) + [1],
-                activation=activation,
-                weight_initialization_mode=weight_initialization_mode,
-            )
+            critic = nn.Sequential(net)
+            self.critic_list.append(critic)
+            self.add_module(f'critic_{idx}', critic)
 
     def forward(
         self,
@@ -64,4 +63,9 @@ class VCritic(Critic):
         act: torch.Tensor = None,
     ) -> torch.Tensor:
         """Forward."""
-        return torch.squeeze(self.net(obs), -1)
+        res = []
+        for critic in self.critic_list:
+            res.append(torch.squeeze(critic(obs), dim=-1))
+        if self.num_critics == 1:
+            return res[0]
+        return res

@@ -27,7 +27,7 @@ from omnisafe.common.logger import Logger
 from omnisafe.models import ActorBuilder, CriticBuilder
 from omnisafe.utils.core import set_optimizer
 from omnisafe.utils.config_utils import namedtuple2dict
-from omnisafe.utils.offline_dataset import OfflineDataset
+from omnisafe.utils.offline_dataset import OfflineDatasetWithSafeFlag as OfflineDataset
 from omnisafe.utils.schedule import ConstantSchedule, PiecewiseSchedule
 from omnisafe.wrappers import wrapper_registry
 
@@ -180,7 +180,7 @@ class PRUSafe:
 
         for _ in range(self.cfgs.vae_epochs):
             for grad_step, batch in enumerate(loader):
-                obs, act, reward, cost, done, next_obs = batch  # pylint: disable=unused-variable
+                obs, act, reward, cost, done, next_obs, is_safe = batch  # pylint: disable=unused-variable
                 recon_loss, kl_loss = self.vae.loss(obs, act)
                 loss = recon_loss + 1.5 * kl_loss
                 self.vae_optimizer.zero_grad()
@@ -191,7 +191,7 @@ class PRUSafe:
         self.logger.log('Finish training VAE...')
 
     def _train(self, grad_step, batch):
-        obs, act, reward, cost, done, next_obs = batch
+        obs, act, reward, cost, done, next_obs, is_safe = batch
         batch_size = obs.shape[0]
 
         act_sample, logp_sample = self.actor.predict(obs, need_log_prob=True)
@@ -206,6 +206,7 @@ class PRUSafe:
         act_next = self.actor.predict(next_obs)
 
         qr1, qr2 = self.critic(obs, act)
+        qr = torch.min(qr1, qr2)
         qr1_next, qr2_next = self.target_critic(next_obs, act_next)
         uncertainty = self.uncertainty(obs, act)
         uncertainty_next = self.uncertainty(next_obs, act_next)
@@ -231,7 +232,8 @@ class PRUSafe:
         beta_out = self.beta_out.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
 
         qr_next = torch.min(qr1_next, qr2_next)
-        qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next))
+        qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)) * is_safe + \
+            torch.max(qr - self.cfgs.cost_scale * beta_out * uncertainty, torch.zeros_like(qr)) * (1 - is_safe)
         qr_target = qr_target.detach()
 
         critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
@@ -297,6 +299,7 @@ class PRUSafe:
                     'Misc/alpha': alpha.item(),
                     'Misc/beta_in': beta_in,
                     'Misc/beta_out': beta_out,
+                    'Misc/safe_rate': (is_safe.sum() / is_safe.shape[0]).item(),
                 }
             )
 
@@ -365,11 +368,6 @@ class PRUSafe:
         self.logger.log_tabular('Qr/rand_Qr')
         # self.logger.log_tabular('Qr/data-rand')
         # self.logger.log_tabular('Qr/data-curr')
-
-        self.logger.log_tabular('Qc/data_Qc')
-        self.logger.log_tabular('Qc/target_Qc')
-        # self.logger.log_tabular('Qc/curr_Qc')
-        self.logger.log_tabular('Qc/rand_Qc')
 
         self.logger.log_tabular('Uncertainty/data_uncertainty')
         self.logger.log_tabular('Uncertainty/target_uncertainty')
