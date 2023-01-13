@@ -49,7 +49,7 @@ class VCritic(Critic):
         self.critic_list = []
         for idx in range(num_critics):
             net = build_mlp_network(
-                [obs_dim + act_dim] + hidden_sizes + [1],
+                [obs_dim] + hidden_sizes + [1],
                 activation=activation,
                 weight_initialization_mode=weight_initialization_mode,
             )
