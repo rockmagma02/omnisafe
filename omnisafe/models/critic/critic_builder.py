@@ -63,6 +63,7 @@ class CriticBuilder:
                 activation=self.activation,
                 weight_initialization_mode=self.weight_initialization_mode,
                 shared=self.shared,
+                **kwargs,
             )
 
         raise NotImplementedError(f'critic_type "{critic_type}" is not implemented.')
