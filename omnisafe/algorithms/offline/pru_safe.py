@@ -94,11 +94,11 @@ class PRUSafe:
         self.critic_optimizer = set_optimizer(
             'Adam', module=self.critic, learning_rate=cfgs.critic_lr
         )
-        self.cost_critic = builder.build_critic('q', num_critics=2)
-        self.target_cost_critic = deepcopy(self.cost_critic)
-        self.cost_critic_optimizer = set_optimizer(
-            'Adam', module=self.cost_critic, learning_rate=cfgs.critic_lr
-        )
+        # self.cost_critic = builder.build_critic('q', num_critics=2)
+        # self.target_cost_critic = deepcopy(self.cost_critic)
+        # self.cost_critic_optimizer = set_optimizer(
+        #     'Adam', module=self.cost_critic, learning_rate=cfgs.critic_lr
+        # )
         # self.value = builder.build_critic('v')
         # self.target_value = deepcopy(self.value)
         # self.value_optimizer = set_optimizer(
@@ -126,8 +126,8 @@ class PRUSafe:
         self.actor.change_device(cfgs.device)
         self.critic.to(cfgs.device)
         self.target_critic.to(cfgs.device)
-        self.cost_critic.to(cfgs.device)
-        self.target_cost_critic.to(cfgs.device)
+        # self.cost_critic.to(cfgs.device)
+        # self.target_cost_critic.to(cfgs.device)
         self.vae.to(cfgs.device)
 
         what_to_save = {
@@ -232,8 +232,8 @@ class PRUSafe:
         beta_out = self.beta_out.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
 
         qr_next = torch.min(qr1_next, qr2_next)
-        qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)) * is_safe + \
-            torch.max(qr - self.cfgs.cost_scale * beta_out * uncertainty, torch.zeros_like(qr)) * (1 - is_safe)
+        qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)) * (1 - cost) \
+                    + cost * (1e-3)
         qr_target = qr_target.detach()
 
         critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)

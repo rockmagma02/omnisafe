@@ -13,21 +13,29 @@ USE_CUDA = True
 PER_THREADS = 6
 MAX_SUBPROCESSES = 11
 # GPU config
-PROSESS_PER_GPU = 3
-GPUS = [3, 4, 5]
+PROSESS_PER_GPU = 5
+GPUS = [0, 1, 2, 3, 4]
 
 USE_REDIRECTION = True
 
 grid_cfgs_1 = {
-    'env_id': ['SafetyPointGoal1-v0'],
-    'data_dir': ['./runs/benchmark'],
-    'algo': ['VAEBC'],
-    'seed': [0, 100, 200],
+    'env_id': ['SafetyPointCircle0-v0'],
+    'data_dir': ['./runs/et'],
+    'algo': ['PRUSafe'],
+    'seed': [0],
     'dataset_path': [
-        './runs/data/SafetyPointGoal1-v0-mixed-beta0.5.npz',
-        './runs/data/SafetyPointGoal1-v0-mixed-beta0.25.npz',
-        './runs/data/SafetyPointGoal1-v0-mixed-beta0.75.npz'
-    ]
+        './runs/data/SafetyPointCircle0-v0-mixed-beta0.5.npz',
+        # './runs/data/SafetyPointGoal1-v0-mixed-beta0.25.npz',
+        # './runs/data/SafetyPointGoal1-v0-mixed-beta0.75.npz'
+    ],
+    'beta_in': [1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
+    'beta_out': [
+        [1e-1, 2e-2, 1e-2],
+        [1e-2, 2e-3, 1e-3],
+        [1e-3, 2e-4, 1e-4],
+        [1e-4, 2e-5, 1e-5],
+        [1e-5, 2e-6, 1e-6],
+    ],
 }
 
 # grid_cfgs_2 = {
