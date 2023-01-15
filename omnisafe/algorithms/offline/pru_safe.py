@@ -233,7 +233,7 @@ class PRUSafe:
 
         qr_next = torch.min(qr1_next, qr2_next)
         qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)) * (1 - cost) \
-                    + cost * (1e-3)
+                    + cost * (self.cfgs.re)
         qr_target = qr_target.detach()
 
         critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)

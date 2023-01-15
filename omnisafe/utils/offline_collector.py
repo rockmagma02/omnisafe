@@ -267,6 +267,7 @@ class Collector:
     def _load_env_agent(self, agent_type: Literal['random', 'expert', 'unsafe']):
         # load env
         env = Env(self.env_id)
+        env.set_seed(0)
 
         action_space = env.action_space
         observation_space = env.env.observation_space
