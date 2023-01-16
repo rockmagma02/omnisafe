@@ -83,4 +83,4 @@ defaults:
   time_step: [0, 50000, 1000000]
   vae_epochs: 3
   cost_limit: 30
-  re: 0.001
+  re: 0.1

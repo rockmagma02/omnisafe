@@ -113,6 +113,15 @@ class PRUSafe:
             outside_value=cfgs.beta_out[2],
         )
 
+        if isinstance(cfgs.re, list):
+            self.re = PiecewiseSchedule(
+                [(0, cfgs.re[0]),
+                (1_000_000, cfgs.re[1])],
+                outside_value=cfgs.re[1],
+            )
+        else:
+            self.re = ConstantSchedule(cfgs.re)
+
         alpha_init = torch.as_tensor(cfgs.alpha_init, dtype=torch.float32, device=self.cfgs.device)
         self.log_alpha = nn.Parameter(torch.log(alpha_init), requires_grad=True)
         self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=cfgs.alpha_lr)
@@ -230,10 +239,11 @@ class PRUSafe:
 
         beta_in = self.beta_in.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
         beta_out = self.beta_out.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
+        re = self.re.value(self.epoch_step * self.cfgs.grad_steps_per_epoch + grad_step)
 
         qr_next = torch.min(qr1_next, qr2_next)
         qr_target = (reward + (1 - done) * self.cfgs.gamma * (qr_next - beta_in * uncertainty_next)) * (1 - cost) \
-                    + cost * (self.cfgs.re)
+                    + cost * (re)
         qr_target = qr_target.detach()
 
         critic_loss_in = nn.functional.mse_loss(qr1, qr_target) + nn.functional.mse_loss(qr2, qr_target)
