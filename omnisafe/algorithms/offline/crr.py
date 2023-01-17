@@ -133,7 +133,7 @@ class CRR:  # pylint: disable=too-many-instance-attributes
 
             # save model
             if (epoch + 1) % self.cfgs.save_freq == 0:
-                self.logger.torch_save()
+                self.logger.torch_save(itr=epoch + 1)
 
         self.logger.log('Finish learning...')
         self.logger.close()
