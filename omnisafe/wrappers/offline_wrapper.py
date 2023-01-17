@@ -36,6 +36,12 @@ class OfflineEnvWrapper:  # pylint: disable=too-many-instance-attributes
             self.max_ep_len = self.env._max_episode_steps
         else:
             self.max_ep_len = 500
+
+        if env_id in ['SafetyPointGoal1-v0', 'SafetyCarGoal1-v0']:
+            self.max_ep_len = 1000
+        else:
+            self.max_ep_len = 500
+
         self.observation_space = self.env.observation_space
         self.action_space = self.env.action_space
         self.seed = None

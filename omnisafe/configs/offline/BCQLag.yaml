@@ -23,7 +23,7 @@ defaults:
   # Number of epochs
   epochs: 1000
   # Reward discounted factor
-  gamma: 0.99
+  gamma: 0.995
   # Scale of reward
   reward_scale: 1
   # Scale of cost
@@ -86,7 +86,7 @@ defaults:
   # Initial value of lagrangian multiplier
   lagrangian_multiplier_init: 1.0
   # Learning rate of lagrangian multiplier
-  lambda_lr: 0.035
+  lambda_lr: 0.001
   # Type of lagrangian optimizer
   lambda_optimizer: "Adam"
   # When begining update lagrange multiplier, because need time to fit Qc
