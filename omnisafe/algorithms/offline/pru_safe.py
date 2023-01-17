@@ -106,12 +106,15 @@ class PRUSafe:
         # )
 
         self.beta_in = ConstantSchedule(cfgs.beta_in)
-        self.beta_out = PiecewiseSchedule(
-            [(cfgs.time_step[0], cfgs.beta_out[0]),
-            (cfgs.time_step[1], cfgs.beta_out[1]),
-            (cfgs.time_step[2], cfgs.beta_out[2])],
-            outside_value=cfgs.beta_out[2],
-        )
+        if isinstance(cfgs.beta_out, list):
+            self.beta_out = PiecewiseSchedule(
+                [(cfgs.time_step[0], cfgs.beta_out[0]),
+                (cfgs.time_step[1], cfgs.beta_out[1]),
+                (cfgs.time_step[2], cfgs.beta_out[2])],
+                outside_value=cfgs.beta_out[2],
+            )
+        else:
+            self.beta_out = ConstantSchedule(cfgs.beta_out)
 
         if isinstance(cfgs.re, list):
             self.re = PiecewiseSchedule(

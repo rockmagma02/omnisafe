@@ -205,6 +205,7 @@ class CCRR(CRR, Lagrange):  # pylint: disable=too-many-instance-attributes
         adv_c = qc_data - mean_qc.squeeze(1)
 
         exp_adv = torch.exp((adv_r - self.lagrangian_multiplier * adv_c).detach() / self.cfgs.beta)
+        exp_adv = torch.clamp(exp_adv, 0, 1e10)
 
         dist, log_p = self.actor(obs, act)  # pylint: disable=unused-variable
         bc_loss = -log_p

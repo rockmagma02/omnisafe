@@ -56,6 +56,7 @@ class VCritic(Critic):
             critic = nn.Sequential(net)
             self.critic_list.append(critic)
             self.add_module(f'critic_{idx}', critic)
+        self.net = self.critic_list[0]
 
     def forward(
         self,
