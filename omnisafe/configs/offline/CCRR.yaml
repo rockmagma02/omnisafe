@@ -41,7 +41,7 @@ defaults:
   # The Address for saving training process data
   data_dir: './runs/offline'
   # The path of dataset
-  dataset_path: './runs/data/SafetyPointCircle0-v0-mixed-std02.npz'
+  dataset_path: './runs/data/SafetyPointGoal1-v0-mixed-beta0.75.npz'
   ## ---------------------------------------Configuration For Model----------------------------- ##
   model_cfgs:
     # The mode to initiate the weight of network, choosing from "kaiming_uniform", "xavier_normal", "glorot" and "orthogonal".

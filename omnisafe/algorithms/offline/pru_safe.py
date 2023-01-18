@@ -319,7 +319,7 @@ class PRUSafe:
     def uncertainty(self, obs, act):
         dist = self.vae.encode(obs, act)
         kl = torch.distributions.kl.kl_divergence(dist, torch.distributions.Normal(0, 1)).sum(dim=1)
-        return kl * 1e6
+        return kl * self.cfgs.cof
 
     def _soft_update_target(self):
         for target_param, param in zip(self.target_critic.parameters(), self.critic.parameters()):
