@@ -78,10 +78,10 @@ defaults:
   smooth_coeff: 0.005
   alpha_init: 1
   alpha_lr: 0.001
-  beta_in: 0.001
-  beta_out: [0.01, 0.002, 0.001]
+  beta_in: 0.00001
+  beta_out: [0.00001, 0.000002, 0.000001]
   time_step: [0, 50000, 1000000]
-  vae_epochs: 4
+  vae_epochs: 3
   cost_limit: 30
   re: 0.1
   cof: 1000000
