@@ -34,8 +34,10 @@ class BaseAlgo(ABC):  # pylint: disable=too-few-public-methods
         self._seed = cfgs.seed + distributed.get_rank() * 1000
         seed_all(self._seed)
 
-        assert hasattr(cfgs, 'device'), 'Please specify the device in the config file.'
-        self._device = torch.device(self._cfgs.device)
+        assert hasattr(cfgs, 'algo_device'), 'Please specify the device in the config file.'
+        self._algo_device = torch.device(self._cfgs.algo_device)
+        assert hasattr(cfgs, 'env_device'), 'Please specify the device in the config file.'
+        self._env_device = torch.device(self._cfgs.env_device)
 
         distributed.setup_distributed()
 

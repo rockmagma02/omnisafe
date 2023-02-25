@@ -45,7 +45,9 @@ class OnlineAdapter:
         assert env_id in support_envs(), f'Env {env_id} is not supported.'
 
         self._env_id = env_id
-        self._env = make(env_id, num_envs=num_envs)
+        self._env = make(
+            env_id, num_envs=num_envs, env_device=cfgs.env_device, algo_device=cfgs.algo_device
+        )
         self._wrapper(
             obs_normalize=cfgs.obs_normalize,
             reward_normalize=cfgs.reward_normalize,
@@ -54,6 +56,8 @@ class OnlineAdapter:
         self._env.set_seed(seed)
 
         self._cfgs = cfgs
+        self.algo_device = torch.device(cfgs.env_device)
+        self.env_device = torch.device(cfgs.algo_device)
 
     def _wrapper(
         self,

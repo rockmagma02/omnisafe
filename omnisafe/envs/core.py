@@ -43,6 +43,8 @@ class CMDP(ABC):
     _action_space: OmnisafeSpace
     _observation_space: OmnisafeSpace
 
+    _env_device: torch.device
+    _algo_device: torch.device
     _num_envs: int
     _time_limit: Optional[int] = None
     need_time_limit_wrapper: bool
@@ -87,6 +89,24 @@ class CMDP(ABC):
         return self._observation_space
 
     @property
+    def env_device(self) -> torch.device:
+        """The device of the environment.
+
+        Returns:
+            torch.device: the device.
+        """
+        return self._env_device
+
+    @property
+    def algo_device(self) -> torch.device:
+        """The device of the algorithm.
+
+        Returns:
+            torch.Tensor: the device.
+        """
+        return self._algo_device
+
+    @property
     def num_envs(self) -> int:
         """The parallel environments.
 
@@ -126,19 +146,6 @@ class CMDP(ABC):
     @abstractmethod
     def reset(self, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
         """Resets the environment and returns an initial observation.
-
-        Args:
-            seed (Optional[int]): seed for the environment.
-
-        Returns:
-            observation (torch.Tensor): the initial observation of the space.
-            info (Dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning).
-        """
-
-    @abstractmethod
-    def single_reset(self, idx: int, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
-        """For parallel env, reset one of the env and returns an initial observation,
-            if env not support parallel, should be same as reset.
 
         Args:
             seed (Optional[int]): seed for the environment.
@@ -217,9 +224,6 @@ class Wrapper(CMDP):
 
     def reset(self, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
         return self._env.reset(seed)
-
-    def single_reset(self, idx: int, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
-        return self._env.single_reset(idx, seed)
 
     def set_seed(self, seed: int) -> None:
         self._env.set_seed(seed)

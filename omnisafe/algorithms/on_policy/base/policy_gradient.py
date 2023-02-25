@@ -57,7 +57,7 @@ class PolicyGradient(BaseAlgo):
             act_space=self._env.action_space,
             model_cfgs=self._cfgs.model_cfgs,
             epochs=self._cfgs.epochs,
-        ).to(self._device)
+        ).to(self._algo_device)
 
         if distributed.world_size() > 1:
             distributed.sync_params(self._actor_critic)
@@ -81,7 +81,7 @@ class PolicyGradient(BaseAlgo):
             standardized_adv_c=self._cfgs.buffer_cfgs.standardized_cost_adv,
             penalty_coefficient=self._cfgs.penalty_param,
             num_envs=self._cfgs.num_envs,
-            device=self._device,
+            device=self._algo_device,
         )
 
     def _init_log(self) -> None:

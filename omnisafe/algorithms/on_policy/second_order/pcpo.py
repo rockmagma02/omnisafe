@@ -105,7 +105,7 @@ class PCPO(CPO):
             torch.sqrt(2 * self._cfgs.target_kl / (q + 1e-8)) * H_inv_g
             - torch.clamp_min(
                 (torch.sqrt(2 * self._cfgs.target_kl / q) * r + cost) / s,
-                torch.tensor(0.0, device=self._device),
+                torch.tensor(0.0, device=self._algo_device),
             )
             * p
         )  # pylint: disable = invalid-name

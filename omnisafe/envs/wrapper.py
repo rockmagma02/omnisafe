@@ -40,21 +40,15 @@ class TimeLimit(Wrapper):
             time_limit (int): The time limit for each episode.
         """
         super().__init__(env)
+
+        assert self.num_envs == 1, 'TimeLimit only supports single environment.'
+
         self._time_limit: int = time_limit
-        self._time: Union[int, np.ndarray] = (
-            0 if self.num_envs == 1 else np.array([0] * self.num_envs)
-        )
+        self._time: int = 0
 
     def reset(self, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
-        self._time = 0 if self.num_envs == 1 else np.array([0] * self.num_envs)
+        self._time = 0
         return super().reset(seed)
-
-    def single_reset(self, idx: int, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
-        if isinstance(self._time, np.ndarray):
-            self._time[idx] = 0
-        else:
-            self._time = 0
-        return super().single_reset(idx, seed)
 
     def step(
         self, action: torch.Tensor
@@ -62,7 +56,9 @@ class TimeLimit(Wrapper):
         obs, reward, cost, terminated, truncated, info = super().step(action)
 
         self._time += 1
-        truncated = torch.tensor(self._time >= self._time_limit, dtype=torch.bool)
+        truncated = torch.tensor(
+            self._time >= self._time_limit, dtype=torch.bool, device=self.algo_device
+        )
 
         return obs, reward, cost, terminated, truncated, info
 
@@ -75,19 +71,18 @@ class AutoReset(Wrapper):
 
     """
 
+    def __init__(self, env: CMDP) -> None:
+        super().__init__(env)
+
+        assert self.num_envs == 1, 'AutoReset only supports single environment.'
+
     def step(
         self, action: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
         obs, reward, cost, terminated, truncated, info = super().step(action)
 
-        if self.num_envs == 1:
-            if terminated or truncated:
-                obs, _ = self.reset()
-        else:
-            dones = terminated | truncated
-            for idx, done in enumerate(dones):
-                if done:
-                    obs[idx], _ = self.single_reset(idx)
+        if terminated or truncated:
+            obs, _ = self.reset()
 
         return obs, reward, cost, terminated, truncated, info
 
@@ -110,7 +105,9 @@ class ObsNormalize(Wrapper):
         if norm is not None:
             self._obs_normalizer = norm
         else:
-            self._obs_normalizer = Normalizer(self.observation_space.shape, clip=5)
+            self._obs_normalizer = Normalizer(
+                self.observation_space.shape, device=self.algo_device, clip=5
+            )
 
     def step(
         self, action: torch.Tensor
@@ -124,12 +121,6 @@ class ObsNormalize(Wrapper):
         obs, info = super().reset(seed)
         info['original_obs'] = obs
         obs = self._obs_normalizer.normalize(obs)
-        return obs, info
-
-    def single_reset(self, idx: int, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
-        obs, info = super().single_reset(idx, seed)
-        info['original_obs'] = obs
-        obs = self._obs_normalizer.normalize(obs.unsqueeze(0)).squeeze(0)
         return obs, info
 
 
@@ -156,7 +147,7 @@ class RewardNormalize(Wrapper):
         if norm is not None:
             self._reward_normalizer = norm
         else:
-            self._reward_normalizer = Normalizer((), clip=5)
+            self._reward_normalizer = Normalizer((), device=self.algo_device, clip=5)
 
     def step(
         self, action: torch.Tensor
@@ -188,7 +179,7 @@ class CostNormalize(Wrapper):
         if norm is not None:
             self._obs_normalizer = norm
         else:
-            self._cost_normalizer = Normalizer((), clip=5)
+            self._cost_normalizer = Normalizer((), device=self.algo_device, clip=5)
 
     def step(
         self, action: torch.Tensor
@@ -224,8 +215,12 @@ class ActionScale(Wrapper):
         super().__init__(env)
         assert isinstance(self.action_space, spaces.Box), 'Action space must be Box'
 
-        self._old_min_action = torch.tensor(self.action_space.low, dtype=torch.float32)
-        self._old_max_action = torch.tensor(self.action_space.high, dtype=torch.float32)
+        self._old_min_action = torch.tensor(
+            self.action_space.low, dtype=torch.float32, device=self.algo_device
+        )
+        self._old_max_action = torch.tensor(
+            self.action_space.high, dtype=torch.float32, device=self.algo_device
+        )
 
         min_action = np.zeros(self.action_space.shape, dtype=self.action_space.dtype) + low
         max_action = np.zeros(self.action_space.shape, dtype=self.action_space.dtype) + high
@@ -236,12 +231,13 @@ class ActionScale(Wrapper):
             dtype=self.action_space.dtype,  # type: ignore
         )
 
-        self._min_action = torch.tensor(min_action, dtype=torch.float32)
-        self._max_action = torch.tensor(max_action, dtype=torch.float32)
+        self._min_action = torch.tensor(min_action, dtype=torch.float32, device=self.algo_device)
+        self._max_action = torch.tensor(max_action, dtype=torch.float32, device=self.algo_device)
 
     def step(
         self, action: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
+        action = torch.clamp(action, self._min_action, self._max_action)
         action = self._old_min_action + (self._old_max_action - self._old_min_action) * (
             action - self._min_action
         ) / (self._max_action - self._min_action)

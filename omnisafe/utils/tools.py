@@ -128,6 +128,9 @@ def seed_all(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+
     try:
         torch.use_deterministic_algorithms(True)
     except AttributeError:

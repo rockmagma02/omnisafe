@@ -28,23 +28,23 @@ class Normalizer(nn.Module):
     Department of Computer Science, Stanford University.
     """
 
-    def __init__(self, shape: Tuple[int, ...], clip: float = 1e6) -> None:
+    def __init__(self, shape: Tuple[int, ...], device: torch.device, clip: float = 1e6) -> None:
         """Initialize the normalize."""
         super().__init__()
         if shape == ():
-            self.register_buffer('_mean', torch.tensor(0.0))
-            self.register_buffer('_sumsq', torch.tensor(0.0))
-            self.register_buffer('_var', torch.tensor(0.0))
-            self.register_buffer('_std', torch.tensor(0.0))
-            self.register_buffer('_count', torch.tensor(0))
-            self.register_buffer('_clip', clip * torch.tensor(1.0))
+            self.register_buffer('_mean', torch.tensor(0.0, device=device))
+            self.register_buffer('_sumsq', torch.tensor(0.0, device=device))
+            self.register_buffer('_var', torch.tensor(0.0, device=device))
+            self.register_buffer('_std', torch.tensor(0.0, device=device))
+            self.register_buffer('_count', torch.tensor(0, device=device))
+            self.register_buffer('_clip', clip * torch.tensor(1.0, device=device))
         else:
-            self.register_buffer('_mean', torch.zeros(*shape))
-            self.register_buffer('_sumsq', torch.zeros(*shape))
-            self.register_buffer('_var', torch.zeros(*shape))
-            self.register_buffer('_std', torch.zeros(*shape))
+            self.register_buffer('_mean', torch.zeros(*shape, device=device))
+            self.register_buffer('_sumsq', torch.zeros(*shape, device=device))
+            self.register_buffer('_var', torch.zeros(*shape, device=device))
+            self.register_buffer('_std', torch.zeros(*shape, device=device))
             self.register_buffer('_count', torch.tensor(0))
-            self.register_buffer('_clip', clip * torch.ones(*shape))
+            self.register_buffer('_clip', clip * torch.ones(*shape, device=device))
 
         self._mean: torch.Tensor  # running mean
         self._sumsq: torch.Tensor  # running sum of squares
@@ -54,6 +54,7 @@ class Normalizer(nn.Module):
         self._clip: torch.Tensor  # clip value
 
         self._shape = shape
+        self._device = device
         self._first = True
 
     @property

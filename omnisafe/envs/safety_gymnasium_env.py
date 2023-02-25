@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional, Tuple
 import safety_gymnasium
 import torch
 
+from omnisafe.common.logger import WordColor
 from omnisafe.envs.core import CMDP, env_register
 
 
@@ -74,7 +75,14 @@ class SafetyGymnasiumEnv(CMDP):
     need_auto_reset_wrapper = False
     need_time_limit_wrapper = False
 
-    def __init__(self, env_id: str, num_envs: int = 1, **kwargs) -> None:
+    def __init__(
+        self,
+        env_id: str,
+        env_device: torch.device,
+        algo_device: torch.device,
+        num_envs: int = 1,
+        **kwargs,
+    ) -> None:
         if num_envs > 1:
             self._env = safety_gymnasium.vector.make(env_id=env_id, num_envs=num_envs, **kwargs)
             self._action_space = self._env.single_action_space
@@ -85,30 +93,36 @@ class SafetyGymnasiumEnv(CMDP):
             self._observation_space = self._env.observation_space
 
         self._num_envs = num_envs
+        try:
+            self._time_limit = self._env._max_episode_steps
+        except AttributeError:
+            print(WordColor.colorize('WARNING: Cannot get time limit from the environment.', 'red'))
+            self._time_limit = None
+
+        self._env_device = env_device
+        self._algo_device = algo_device
 
     def step(
         self, action: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Dict]:
-        obs, reward, cost, terminated, truncated, info = self._env.step(action)
+        obs, reward, cost, terminated, truncated, info = self._env.step(action.to(self._env_device))
         obs, reward, cost, terminated, truncated = map(
-            lambda x: torch.as_tensor(x, dtype=torch.float32),
+            lambda x: torch.as_tensor(x, dtype=torch.float32, device=self._algo_device),
             (obs, reward, cost, terminated, truncated),
         )
         return obs, reward, cost, terminated, truncated, info
 
     def reset(self, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
         obs, info = self._env.reset(seed=seed)
-        return torch.as_tensor(obs, dtype=torch.float32), info
-
-    def single_reset(self, idx: int, seed: Optional[int] = None) -> Tuple[torch.Tensor, Dict]:
-        obs, info = self.reset(seed=seed)
-        return obs[idx], info
+        return torch.as_tensor(obs, dtype=torch.float32, device=self._algo_device), info
 
     def set_seed(self, seed: int) -> None:
         self.reset(seed=seed)
 
     def sample_action(self) -> torch.Tensor:
-        return torch.as_tensor(self._env.action_space.sample(), torch.float32)
+        return torch.as_tensor(
+            self._env.action_space.sample(), torch.float32, device=self._env_device
+        )
 
     def render(self) -> Any:
         return self._env.render()

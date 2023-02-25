@@ -107,7 +107,7 @@ class OnPolicyAdapter(OnlineAdapter):
         cost: torch.Tensor,
         info: Dict,
         **kwargs,  # pylint: disable=unused-argument
-    ) -> None:  # pylint: disable=unused-argument
+    ) -> None:
         """Log value."""
         self._ep_ret += info.get('original_reward', reward)
         self._ep_cost += info.get('original_cost', cost)
@@ -127,9 +127,9 @@ class OnPolicyAdapter(OnlineAdapter):
     def _reset_log(self, idx: Optional[int] = None) -> None:
         """Reset log."""
         if idx is None:
-            self._ep_ret = torch.zeros(self._env.num_envs)
-            self._ep_cost = torch.zeros(self._env.num_envs)
-            self._ep_len = torch.zeros(self._env.num_envs)
+            self._ep_ret = torch.zeros(self._env.num_envs, device=self.algo_device)
+            self._ep_cost = torch.zeros(self._env.num_envs, device=self.algo_device)
+            self._ep_len = torch.zeros(self._env.num_envs, device=self.algo_device)
         else:
             self._ep_ret[idx] = 0.0
             self._ep_cost[idx] = 0.0
