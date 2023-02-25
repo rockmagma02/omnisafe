@@ -23,10 +23,8 @@ defaults:
   # if use wandb
   use_wandb: True
   # The torch device
-  device: cpu
-  # The torch device id
-  device_id: 0
-  # The environment wrapper type
+  algo_device: cpu
+  env_device: cpunment wrapper type
   wrapper_type: SauteWrapper
   # Number of epochs
   epochs: 500

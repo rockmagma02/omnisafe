@@ -23,9 +23,8 @@ defaults:
   # if use wandb
   use_wandb: True
   # The torch device
-  device: cpu
-  # The torch device id
-  device_id: 0
+  algo_device: cpu
+  env_device: cpu
   # The environment wrapper type
   wrapper_type: CMDPWrapper
   # Number of epochs
@@ -150,9 +149,8 @@ Pusher-v4:
   # The random seed
   seed: 5
   # The torch device
-  device: cpu
-  # The torch device id
-  device_id: 0
+  algo_device: cpu
+  env_device: cpu
   # The environment wrapper type
   wrapper_type: GymWrapper
   # Number of epochs

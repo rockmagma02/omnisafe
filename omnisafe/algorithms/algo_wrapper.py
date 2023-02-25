@@ -88,7 +88,7 @@ class AlgoWrapper:
         # check_all_configs(cfgs, self.algo_type)
 
         if distributed.fork(
-            self.parallel, use_number_of_threads=use_number_of_threads, device=cfgs.device
+            self.parallel, use_number_of_threads=use_number_of_threads, device=cfgs.algo_device
         ):
             # Re-launches the current script with workers linked by MPI
             sys.exit()
